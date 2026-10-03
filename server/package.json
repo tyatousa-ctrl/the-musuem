@@ -1,0 +1,20 @@
+{
+  "name": "@museum/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p .",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@colyseus/schema": "5.0.36",
+    "@types/express": "5.0.6",
+    "colyseus": "0.18.9",
+    "express": "5.2.1"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "0.18.5"
+  }
+}

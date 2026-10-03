@@ -1,0 +1,11 @@
+{
+  "name": "@museum/tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "measure": "tsx measure-routes.ts",
+    "fetch-art": "tsx fetch-met-art.ts",
+    "screens": "tsx capture-screens.ts"
+  }
+}
