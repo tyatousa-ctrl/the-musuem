@@ -55,9 +55,9 @@ const P = (
 
 const portals: Portal[] = [
   // Facade: three arched bays onto the steps.
-  P('facadeN', 'exterior', 'lobby', 'arch', 'z', 39, 0, -7, 4, 6.5),
+  P('facadeN', 'exterior', 'lobby', 'arch', 'z', 39, 0, -8, 4, 6.5),
   P('facadeC', 'exterior', 'lobby', 'arch', 'z', 39, 0, 0, 4, 6.5),
-  P('facadeS', 'exterior', 'lobby', 'arch', 'z', 39, 0, 7, 4, 6.5),
+  P('facadeS', 'exterior', 'lobby', 'arch', 'z', 39, 0, 8, 4, 6.5),
   // Lobby.
   P('lobby-dino', 'lobby', 'dinoHall', 'grand', 'z', -7, 0, 0, 8, 12),
   P('lobby-egypt', 'lobby', 'egyptS', 'door', 'x', 16, 0, -11, 4, 4),

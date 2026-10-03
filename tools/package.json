@@ -7,5 +7,8 @@
     "measure": "tsx measure-routes.ts",
     "fetch-art": "tsx fetch-met-art.ts",
     "screens": "tsx capture-screens.ts"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
   }
 }
