@@ -6,7 +6,8 @@
   "scripts": {
     "measure": "tsx measure-routes.ts",
     "fetch-art": "tsx fetch-met-art.ts",
-    "screens": "tsx capture-screens.ts"
+    "screens": "tsx capture-screens.ts",
+    "smoke": "tsx smoke/two-players.ts"
   },
   "devDependencies": {
     "playwright": "1.56.1"

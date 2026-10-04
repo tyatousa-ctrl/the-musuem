@@ -69,6 +69,7 @@ export class Game {
   private spectate = flags.spectate;
   private mouseNdc = new THREE.Vector2();
   private countdownShown = false;
+  private wristPokeCooldown = 0;
 
   constructor(readonly slug: string | null) {
     this.renderer = createRenderer(this.tier, document.getElementById('app')!);
@@ -106,9 +107,11 @@ export class Game {
 
     const steps = museum.spawns.exterior[0];
     this.player.teleport([...steps.pos], steps.yaw);
+    if (flags.room) this.spawnInRoom(flags.room);
     if (flags.cam) this.applyBookmark(flags.cam);
 
     if (this.slug && !flags.offline) await this.connect();
+    if (flags.mode && this.net?.isHost()) this.net.send('selectMode', { mode: flags.mode as ModeId });
     else this.overlay.status('');
     this.modeCtx = { net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene };
 
@@ -201,6 +204,16 @@ export class Game {
     location.assign('/');
   }
 
+  /** ?room=<id>: start just inside one of the room's doorways (debug). */
+  private spawnInRoom(id: string) {
+    const r = museum.rooms.find((x) => x.id === id);
+    const p = museum.portals.find((x) => (x.a === id || x.b === id) && x.kind !== 'opening' && x.y === r?.floorY);
+    if (!r || !p) { console.warn(`?room=${id}: unknown room`); return; }
+    const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+    const k = 1.6 / Math.max(1e-3, Math.hypot(cx - p.x, cz - p.z));
+    this.player.teleport([p.x + (cx - p.x) * k, r.floorY, p.z + (cz - p.z) * k], Math.atan2(-(cx - p.x), -(cz - p.z)));
+  }
+
   applyBookmark(id: string) {
     const b = BOOKMARKS.find((x) => x.id === id);
     if (!b) { console.warn(`unknown bookmark ${id}`); return; }
@@ -224,6 +237,16 @@ export class Game {
     else this.desktop.read(a);
     if (!this.playing && !xr) { a.move.set(0, 0); a.lookDelta.set(0, 0); }
     if (a.perfToggle) this.perf.toggle();
+    // Wrist button: poke the left-wrist panel with the right hand to toggle the menu.
+    if (xr) {
+      this.wristPokeCooldown = Math.max(0, this.wristPokeCooldown - dt);
+      const tip = this.player.hands.right.pos;
+      if (this.wristPokeCooldown === 0 && this.wrist.panel.mesh.getWorldPosition(tmpB).distanceTo(tip) < 0.07) {
+        a.menuToggle = true;
+        this.wristPokeCooldown = 0.8;
+        this.haptic('right', 0.4, 40);
+      }
+    }
     if (a.menuToggle && (this.playing || xr)) {
       this.menu.toggle();
       if (this.menu.open && !xr) this.desktop.unlock();
@@ -357,7 +380,7 @@ export class Game {
     if (a.useRightPressed) {
       const right = this.player.hands.right;
       this.punchAnim = 1;
-      const caseId = this.breakables.inFront(head, tmpDir, 1.6);
+      const caseId = this.breakables.inFront(head, tmpDir, 2.0);
       const target = this.playerInFront(head, tmpDir, 1.5);
       if (caseId) {
         this.reachTo('right', this.breakables.position(caseId)!);
@@ -396,10 +419,11 @@ export class Game {
   }
 
   /** Desktop reach: briefly put the simulated hand at a target and send the pose now. */
+  private reachTarget = new THREE.Vector3();
   private reachTo(h: Hand, p: THREE.Vector3) {
-    const hand = this.player.hands[h];
-    hand.pos.copy(p);
-    this.sendPose(1, h, p);
+    const target = this.reachTarget.copy(p); // own vector: sendPose reuses the scratch ones
+    this.player.hands[h].pos.copy(target);
+    this.sendPose(1, h, target);
   }
 
   private physicalHit(h: Hand, speed: number) {
@@ -558,6 +582,9 @@ export class Game {
     if (style === 'service' || style === 'office' || style === 'stairwell') return 'stepConcrete';
     return 'stepStone';
   }
+
+  /** Automation: one desktop left-click (punch / throw) as if pointer-locked. */
+  debugClick() { this.desktop.synthClick(); }
 
   /** For tests and debugging. */
   debugInfo() {

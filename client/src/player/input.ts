@@ -65,6 +65,10 @@ export class DesktopInput {
   }
 
   lock() { if (!this.locked) this.el.requestPointerLock?.()?.catch?.(() => {}); }
+
+  /** Automation hook: behave as one locked left-click (headless browsers cannot take pointer lock). */
+  synthClick() { this.mousePressed = true; this.forceUse = true; }
+  private forceUse = false;
   unlock() { if (this.locked) document.exitPointerLock(); }
 
   private any(codes: string[]) { return codes.some((c) => this.keys.has(c)); }
@@ -82,7 +86,8 @@ export class DesktopInput {
     out.grabLeftPressed = this.edge(k.grabLeft);
     out.shovePressed = this.edge(k.shove);
     out.useRight = this.mouseDown;
-    out.useRightPressed = this.mousePressed && this.locked;
+    out.useRightPressed = this.mousePressed && (this.locked || this.forceUse);
+    this.forceUse = false;
     out.uiSelect = this.mousePressed;
     out.menuToggle = this.edge(k.menu);
     out.perfToggle = this.edge(k.perf);

@@ -7,7 +7,14 @@ function defaultServerUrl() {
   return `${location.protocol}//${location.hostname}:2567`;
 }
 
-export const SERVER_URL: string = (import.meta.env.VITE_SERVER_URL as string | undefined)?.replace(/\/$/, '') || defaultServerUrl();
+/** VITE_SERVER_URL may be a full URL or a bare host (Render's fromService gives a host). */
+function configuredServerUrl(): string | null {
+  const raw = (import.meta.env.VITE_SERVER_URL as string | undefined)?.trim().replace(/\/$/, '');
+  if (!raw) return null;
+  return /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+}
+
+export const SERVER_URL: string = configuredServerUrl() ?? defaultServerUrl();
 
 export type QualityTier = 'quest' | 'desktop' | 'desktop-high';
 

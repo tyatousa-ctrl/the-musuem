@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { seeded } from './textures';
+import { assets } from '../core/assets';
 
 /**
  * Artwork catalogue (brief §8.3). `tools/fetch-met-art.ts` writes
@@ -178,11 +179,14 @@ export function placeholderCatalogue(count = 32): ArtCatalogue {
 /** Load the fetched Met catalogue if present, else fall back to placeholders. */
 export async function loadArtCatalogue(): Promise<ArtCatalogue> {
   try {
-    const res = await fetch('/assets/art/paintings.json');
+    const url = assets.url('art.catalogue');
+    if (!url) throw new Error('no catalogue in manifest');
+    const res = await fetch(url);
     if (!res.ok) throw new Error(String(res.status));
     const data = (await res.json()) as { atlases: string[]; paintings: Painting[] };
     const loader = new THREE.TextureLoader();
-    const atlases = await Promise.all(data.atlases.map((file) => loader.loadAsync(`/assets/art/${file}`)));
+    const dir = url.slice(0, url.lastIndexOf('/') + 1);
+    const atlases = await Promise.all(data.atlases.map((file) => loader.loadAsync(`${dir}${file}`)));
     atlases.forEach((t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; });
     return { paintings: data.paintings, atlases, placeholder: false };
   } catch {

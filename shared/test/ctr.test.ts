@@ -109,7 +109,7 @@ describe('Capture the Relic rules (brief §15)', () => {
   });
 
   it('scores by carrying the enemy relic into your capture zone', () => {
-    let { s } = steal(fresh());
+    const { s } = steal(fresh());
     const { s: s2, outs } = run(s, { type: 'carrierMoved', playerId: 'a1', playerTeam: 'A', pos: [-16, 0, -51] });
     expect(s2.scores.A).toBe(1);
     expect(outs).toContainEqual({ type: 'captured', team: 'A', by: 'a1' });
@@ -128,7 +128,7 @@ describe('Capture the Relic rules (brief §15)', () => {
   });
 
   it('announces when both relics are out', () => {
-    let { s } = steal(fresh());
+    const { s } = steal(fresh());
     const { outs } = run(s,
       { type: 'caseHit', team: 'A' }, { type: 'caseHit', team: 'A' },
       { type: 'grab', playerId: 'b1', playerTeam: 'B', relic: 'A' });

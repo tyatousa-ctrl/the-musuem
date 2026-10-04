@@ -1,0 +1,43 @@
+# Render Blueprint (brief §21): one Node web service for the Colyseus server and
+# one static site for the client, both auto-deployed from main.
+# Field names follow Render's Blueprint spec as I know it; they could not be
+# checked against the live docs from the build environment (see docs/DECISIONS.md).
+services:
+  - type: web
+    name: the-museum-server
+    runtime: node
+    plan: free            # use a paid plan for real play sessions (no sleep, see README)
+    rootDir: .
+    buildCommand: npm ci && npm run build -w shared && npm run build -w server
+    startCommand: npm run start -w server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Static site's public host, used for CORS. A bare host is accepted.
+      - key: CLIENT_ORIGIN
+        fromService:
+          type: web
+          name: the-museum-client
+          property: host
+
+  - type: web
+    name: the-museum-client
+    runtime: static
+    buildCommand: npm ci && npm run build -w client
+    staticPublishPath: client/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html   # so /party/<slug> loads the app
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Server's public host; the client upgrades a bare host to https:// and wss://.
+      - key: VITE_SERVER_URL
+        fromService:
+          type: web
+          name: the-museum-server
+          property: host

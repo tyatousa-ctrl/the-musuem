@@ -1,0 +1,12 @@
+{
+  "$comment": "Logical asset id -> file (relative to /assets/), type, tier, licence, source. file: null means 'use the procedural placeholder'. See docs/CREDITS.md and brief §8.1.",
+  "assets": {
+    "art.catalogue": { "type": "json", "file": "art/paintings.json", "tier": "all", "licence": "CC0", "source": "Met Collection API via tools/fetch-met-art.ts" },
+    "model.skeleton.rex": { "type": "gltf", "file": null, "tier": "all", "licence": "", "source": "Smithsonian 3D CC0 candidate; procedural until downloaded", "scale": 1, "yOffset": 0 },
+    "model.skeleton.sauropod": { "type": "gltf", "file": null, "tier": "all", "licence": "", "source": "Smithsonian 3D CC0 candidate; procedural until downloaded", "scale": 1, "yOffset": 0 },
+    "model.skeleton.trike": { "type": "gltf", "file": null, "tier": "all", "licence": "", "source": "Smithsonian 3D CC0 candidate; procedural until downloaded", "scale": 1, "yOffset": 0 },
+    "texture.limestone": { "type": "texture", "file": null, "tier": "all", "licence": "", "source": "procedural; Poly Haven / ambientCG CC0 candidate" },
+    "texture.marble": { "type": "texture", "file": null, "tier": "all", "licence": "", "source": "procedural; Poly Haven / ambientCG CC0 candidate" },
+    "texture.sky": { "type": "texture", "file": null, "tier": "all", "licence": "", "source": "procedural; Poly Haven HDRI CC0 candidate" }
+  }
+}

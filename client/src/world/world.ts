@@ -7,6 +7,8 @@ import { buildExterior, type ExteriorDynamic } from './build/exterior';
 import { labelAtlas, loadArtCatalogue, type Painting } from './paintings';
 import { setArtTextures } from './sink';
 import { shaftTexture, skyTexture } from './textures';
+import { assets } from '../core/assets';
+import { pendingModels } from './build/exhibits';
 
 export interface World {
   scene: THREE.Group;
@@ -43,6 +45,7 @@ function visibilitySets(map: MuseumMap): Map<RoomId, Set<RoomId>> {
 const EXTERIOR_VISIBLE_FROM = new Set(['exterior', 'lobby', 'northCourt', 'southCourt']);
 
 export async function buildWorld(map: MuseumMap, onProgress?: (label: string) => void): Promise<World> {
+  await assets.load();
   onProgress?.('Hanging the paintings…');
   const art = await loadArtCatalogue();
   const labels = labelAtlas(art.paintings);
@@ -99,6 +102,15 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
     rooms.set(r.id, built.group);
     scene.add(built.group);
     colliders.push(...built.colliders);
+  }
+
+  // Manifest models replace procedural exhibits once loaded (no code changes needed to swap).
+  for (const pm of pendingModels) {
+    void assets.model(pm.id).then((obj) => {
+      if (!obj) return;
+      obj.applyMatrix4(pm.matrix);
+      rooms.get(pm.room)?.add(obj);
+    });
   }
 
   onProgress?.('Laying the floors…');

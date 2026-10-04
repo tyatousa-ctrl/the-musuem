@@ -3,6 +3,10 @@ import type { Block } from '@museum/shared';
 import type { Sink } from '../sink';
 import { column, flowers, mergeParts, vitrine } from '../kit/kit';
 import { seeded } from '../textures';
+import { assets } from '../../core/assets';
+
+/** Exhibits whose manifest entry has a real model: placed after the build (brief §8.1). */
+export const pendingModels: { id: string; room: string; matrix: THREE.Matrix4 }[] = [];
 
 const M = (x: number, y: number, z: number) => new THREE.Matrix4().makeTranslation(x, y, z);
 
@@ -125,10 +129,11 @@ export function buildBlock(sink: Sink, b: Block) {
       // Moulded cap.
       sink.box('stone', b.x0 - 0.06, b.y1 - 0.08, b.z0 - 0.06, b.x1 + 0.06, b.y1, b.z1 + 0.06, { tint: b.variant === 'relic' ? 0x6b5643 : 0xe6dccb });
       if (b.variant === 'rex' || b.variant === 'sauropod' || b.variant === 'trike') {
-        const sk = skeleton(b.variant);
         const along = d > w; // face along the hall's long axis
         const m = M(cx, b.y1, cz).multiply(new THREE.Matrix4().makeRotationY(along ? (b.variant === 'trike' ? -Math.PI / 2 : Math.PI / 2) : 0));
-        sink.add('bone', sk, m, { tint: 0xd8c9a8 });
+        const modelId = `model.skeleton.${b.variant}`;
+        if (assets.has(modelId)) pendingModels.push({ id: modelId, room: b.room, matrix: m });
+        else sink.add('bone', skeleton(b.variant), m, { tint: 0xd8c9a8 });
         // Collide with the legs region only (partial cover).
         sink.collideBox(cx - 0.6, b.y1, cz - (along ? d * 0.3 : 0.6), cx + 0.6, b.y1 + 3, cz + (along ? d * 0.3 : 0.6));
       }

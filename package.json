@@ -9,18 +9,25 @@
     "tools"
   ],
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "npm run build -w shared && concurrently -k -n shared,server,client -c gray,blue,green \"tsc -w -p shared --preserveWatchOutput\" \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
-    "test": "vitest run",
-    "typecheck": "tsc -p shared && tsc -p server --noEmit && tsc -p client --noEmit && tsc -p tools --noEmit",
+    "start": "npm run start -w server",
+    "test": "npm run build -w shared && vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p client --noEmit && tsc -p tools --noEmit",
     "measure-routes": "npm run measure -w tools",
-    "screens": "npm run screens -w tools"
+    "screens": "npm run screens -w tools",
+    "smoke": "npm run smoke -w tools",
+    "fetch-art": "npm run fetch-art -w tools",
+    "check": "npm run typecheck && npm run lint && npm test && npm run measure-routes"
   },
   "devDependencies": {
     "@types/node": "26.6.4",
     "concurrently": "10.0.5",
+    "eslint": "9.39.5",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.71.0",
     "vitest": "5.0.3"
   }
 }

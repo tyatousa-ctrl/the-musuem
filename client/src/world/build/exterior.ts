@@ -56,21 +56,23 @@ export interface ExteriorDynamic { group: THREE.Group; update(dt: number, t: num
 export function buildExterior(r: Room, map: MuseumMap): { group: THREE.Group; colliders: THREE.BufferGeometry[]; dynamic: ExteriorDynamic } {
   const sink = new Sink();
   const rand = seeded(42);
+  /** Distant or flat geometry: no bake subdivision (it was most of the exterior's triangles). */
+  const far = (mat: Parameters<Sink['box']>[0], x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, opts: Parameters<Sink['box']>[7] = {}) => sink.box(mat, x0, y0, z0, x1, y1, z1, opts, 1e4);
   const STONE = 0xeee4d0;
 
   // ── Ground: plaza, sidewalks, avenue, far side.
-  sink.box('stone', 39, -2.7, -60, 62, -2.4, 60, { tint: 0xc9c1b3, collide: true });
-  sink.box('asphalt', 62, -2.75, -200, 76, -2.6, 200, { tint: 0x9a9a9a });
-  sink.box('stone', 76, -2.7, -200, 82, -2.45, 200, { tint: 0xb8b2a8 });
-  sink.box('stone', 56, -2.7, -200, 62, -2.45, -60, { tint: 0xb8b2a8 });
-  sink.box('stone', 56, -2.7, 60, 62, -2.45, 200, { tint: 0xb8b2a8 });
-  sink.box('plain', 61.8, -2.75, -200, 62.1, -2.4, 200, { tint: 0x8d8a84 });
-  for (let z = -200; z < 200; z += 6) sink.box('plain', 68.9, -2.6, z, 69.1, -2.59, z + 3, { tint: 0xd8b23a, gain: 1.4 });
-  for (let z = -6; z <= 6; z += 1.2) sink.box('plain', 62.5, -2.6, z, 75.5, -2.59, z + 0.6, { tint: 0xeeeeee, gain: 1.2 });
+  sink.box('stone', 39, -2.7, -60, 62, -2.4, 60, { tint: 0xc9c1b3, collide: true }, 4);
+  far('asphalt', 62, -2.75, -200, 76, -2.6, 200, { tint: 0x9a9a9a });
+  far('stone', 76, -2.7, -200, 82, -2.45, 200, { tint: 0xb8b2a8 });
+  far('stone', 56, -2.7, -200, 62, -2.45, -60, { tint: 0xb8b2a8 });
+  far('stone', 56, -2.7, 60, 62, -2.45, 200, { tint: 0xb8b2a8 });
+  far('plain', 61.8, -2.75, -200, 62.1, -2.4, 200, { tint: 0x8d8a84 });
+  for (let z = -200; z < 200; z += 6) far('plain', 68.9, -2.6, z, 69.1, -2.59, z + 3, { tint: 0xd8b23a, gain: 1.4 });
+  for (let z = -6; z <= 6; z += 1.2) far('plain', 62.5, -2.6, z, 75.5, -2.59, z + 0.6, { tint: 0xeeeeee, gain: 1.2 });
   // Park lawns behind the glass courts.
-  sink.box('foliage', -80, -0.3, -140, 39, -0.05, -60.5, { tint: 0x7fa060 });
-  sink.box('foliage', -80, -0.3, 60.5, 39, -0.05, 140, { tint: 0x7fa060 });
-  sink.box('foliage', -120, -0.3, -140, -45.5, -0.05, 140, { tint: 0x7fa060 });
+  far('foliage', -80, -0.3, -140, 39, -0.05, -60.5, { tint: 0x7fa060 });
+  far('foliage', -80, -0.3, 60.5, 39, -0.05, 140, { tint: 0x7fa060 });
+  far('foliage', -120, -0.3, -140, -45.5, -0.05, 140, { tint: 0x7fa060 });
 
   // ── Terrace, front steps, cheeks, fountains, cart.
   buildPlatforms(sink, map, r.id, 'stone', 0xe3dccf, 'stone', 0xe3dccf);
@@ -161,19 +163,19 @@ export function buildExterior(r: Room, map: MuseumMap): { group: THREE.Group; co
     if (rand() < 0.15) { z += 12; continue; } // cross street
     const h = 22 + rand() * 30;
     const tint = [0xd9c3a8, 0xc9b49c, 0xe3d6c2, 0xb79c86, 0xd0c8bc][Math.floor(rand() * 5)];
-    sink.box('facade', 82, -2.4, z, 100, h, z + w, { tint });
-    sink.box('plain', 81.6, h - 0.6, z, 82.2, h, z + w, { tint: 0xd9d0c0 });
-    sink.box('plain', 81.8, -2.4, z, 82, 1.6, z + w, { tint: 0x3a3530 });
+    far('facade', 82, -2.4, z, 100, h, z + w, { tint });
+    far('plain', 81.6, h - 0.6, z, 82.2, h, z + w, { tint: 0xd9d0c0 });
+    far('plain', 81.8, -2.4, z, 82, 1.6, z + w, { tint: 0x3a3530 });
     z += w + 0.3;
   }
   for (let i = 0; i < 70; i++) {
     const x = 170 + rand() * 150, z = -260 + rand() * 520, w = 12 + rand() * 25, h = 40 + rand() ** 2 * 170;
-    sink.box('plain', x, -2.4, z, x + w, h, z + w * (0.6 + rand()), { tint: 0xa7b3c2 });
+    far('plain', x, -2.4, z, x + w, h, z + w * (0.6 + rand()), { tint: 0xa7b3c2 });
   }
   // Park-side skyline beyond the lawns (west).
   for (let i = 0; i < 40; i++) {
     const x = -260 - rand() * 120, z = -260 + rand() * 520, w = 15 + rand() * 25, h = 50 + rand() ** 2 * 140;
-    sink.box('plain', x, -2.4, z, x + w, h, z + w, { tint: 0xb3bdca });
+    far('plain', x, -2.4, z, x + w, h, z + w, { tint: 0xb3bdca });
   }
 
   const light: RoomLight = {

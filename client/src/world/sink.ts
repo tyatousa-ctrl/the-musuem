@@ -108,7 +108,7 @@ export class Sink {
 
   /** Add a geometry (already in local space) transformed by `matrix` into world space. */
   add(mat: MatKey, geom: THREE.BufferGeometry, matrix?: THREE.Matrix4, opts: AddOpts = {}) {
-    let g = geom.index ? geom.toNonIndexed() : geom.clone();
+    const g = geom.index ? geom.toNonIndexed() : geom.clone();
     for (const name of Object.keys(g.attributes)) if (!['position', 'normal', 'uv'].includes(name)) g.deleteAttribute(name);
     if (matrix) g.applyMatrix4(matrix);
     if (!g.attributes.normal) g.computeVertexNormals();

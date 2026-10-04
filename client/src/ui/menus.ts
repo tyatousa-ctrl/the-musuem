@@ -28,7 +28,7 @@ export class PersonalMenu {
     this.panel.setRenderer((p) => this.draw(p));
   }
 
-  toggle() { this.open ? this.close() : this.show(); }
+  toggle() { if (this.open) this.close(); else this.show(); }
 
   show() {
     this.open = true;
@@ -200,6 +200,9 @@ export class WristHud {
     this.panel.setRenderer((p) => {
       p.background('rgba(20,16,12,0.9)');
       lines.forEach((l, i) => p.text(l, p.canvas.width / 2, 70 + i * 52, i === 0 ? 48 : 36, i === 0 ? GOLD : CREAM, 'center'));
+      // Poke target for the menu fallback (brief §11.1): touch with the right index finger.
+      p.g.fillStyle = '#c9a24f'; p.g.beginPath(); p.g.arc(p.canvas.width - 40, 40, 28, 0, Math.PI * 2); p.g.fill();
+      p.g.fillStyle = '#1b1610'; for (let k = 0; k < 3; k++) p.g.fillRect(p.canvas.width - 54, 28 + k * 10, 28, 5);
       if (this.buttons) p.text(this.buttons, 14, p.canvas.height - 10, 18, '#7f7', 'left', 'monospace');
     });
     this.panel.update();
