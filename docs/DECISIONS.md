@@ -38,7 +38,7 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 
 **`render.yaml` not verified against live docs.** Render's docs were unreachable from the build environment, so I wrote the Blueprint from my knowledge of the spec: `runtime: node|static`, `staticPublishPath`, `routes` rewrite, and `envVars` with `fromService.property: host`. The client accepts a bare host for `VITE_SERVER_URL`, and the server accepts bare hosts in `CLIENT_ORIGIN`. Check the first deploy log.
 
-**CORS.** Colyseus answers CORS for matchmaking and Express routes itself, permissively by default. When `CLIENT_ORIGIN` is set, `matchMaker.controller.getCorsHeaders` restricts it to that origin.
+**CORS.** `CLIENT_ORIGIN` is not set by the Blueprint: Render's first sync rejected `fromService` pointing at the static site. Set it by hand in the dashboard once the client URL is known; until then the server allows any origin. Colyseus answers CORS for matchmaking and Express routes itself, permissively by default. When `CLIENT_ORIGIN` is set, `matchMaker.controller.getCorsHeaders` restricts it to that origin.
 
 **Modes are registries on both sides.** The server has `MODE_FACTORIES` and the client has `CLIENT_MODES`, one line per mode. A mode only touches `ModeContext`: shared systems, teams, announcements, teleports. Capture the Relic rules are pure functions in `shared/src/rules/ctr.ts`; the server mode is glue. **Free Tour** is the stub mode from M4. It stays, because a timed wander is useful for practice.
 

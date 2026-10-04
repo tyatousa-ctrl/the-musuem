@@ -16,12 +16,9 @@ services:
         value: production
       - key: NODE_VERSION
         value: "22"
-      # Static site's public host, used for CORS. A bare host is accepted.
-      - key: CLIENT_ORIGIN
-        fromService:
-          type: web
-          name: the-museum-client
-          property: host
+      # Optional CORS allowlist (client origin or bare host). Left unset in the
+      # Blueprint because Render rejected a fromService reference to the static
+      # site; add it in the dashboard once the client URL is known.
 
   - type: web
     name: the-museum-client

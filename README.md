@@ -112,7 +112,7 @@ The repo includes a Blueprint, `render.yaml`. It defines a Node web service for 
 
 1. Push to GitHub.
 2. In Render, choose **New → Blueprint** and select this repo. Render reads `render.yaml` and creates `the-museum-server` and `the-museum-client`.
-3. The Blueprint wires the client's `VITE_SERVER_URL` to the server's host, and the server's `CLIENT_ORIGIN` to the client's host. No manual env setup is needed. If you rename the services, update those references.
+3. The Blueprint wires the client's `VITE_SERVER_URL` to the server's host. Optionally, once deployed, set `CLIENT_ORIGIN` on the server to the client URL to restrict CORS.
 4. Deploy. Open the client URL, start a party, and share the `/party/<slug>` link.
 
 **Free vs paid.** Free web services sleep after about 15 minutes idle. They take a while to wake, and in-memory parties are lost on restart. The client shows "Waking the museum…" and retries. An old party link recreates the party under the same slug, so links never dead-end. For real play sessions, use a paid instance so the server stays awake.
