@@ -66,5 +66,6 @@ export function lobbyHud(ctx: ClientModeCtx): string[] {
   const s = ctx.net.state;
   if (!s) return ['Connecting…'];
   const n = s.players?.size ?? 0;
-  return ['Grand Lobby', `${n} in party${ctx.net.isHost() ? ' · you host' : ''}`, s.phase === 'roundEnd' ? s.result : 'Visit the totem by the desk'];
+  if (s.phase === 'roundEnd') return ['Round over', s.result, 'Back to the lobby shortly…'];
+  return ['Grand Lobby', `${n} in party${ctx.net.isHost() ? ' · you host' : ''}`, 'Visit the totem by the desk'];
 }
