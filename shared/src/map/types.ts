@@ -101,7 +101,7 @@ export interface Door {
 export interface Spawn { id: string; pos: Vec3; yaw: number }
 
 export interface Zone {
-  id: string; kind: 'capture' | 'restricted' | 'exit' | 'choke';
+  id: string; kind: 'capture' | 'restricted' | 'exit' | 'choke' | 'desk';
   room: RoomId;
   center: Vec3; radius: number;
 }

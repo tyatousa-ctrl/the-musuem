@@ -2,7 +2,7 @@
 
 Last updated: 2026-10-04.
 
-**Status:** M0–M5 (first playable) are built. Everything below is verified on desktop. Nothing has been verified in a headset yet. The first job for the human is to run [HEADSET_TESTS.md](HEADSET_TESTS.md) on a Quest.
+**Status:** M0–M5 (first playable) and M6 (Artifact Hunt) are built. Everything below is verified on desktop. Nothing has been verified in a headset yet. The first job for the human is to run [HEADSET_TESTS.md](HEADSET_TESTS.md) on a Quest.
 
 How each item was verified:
 
@@ -83,9 +83,24 @@ How each item was verified:
 | Full match on desktop controls in two browsers: smash, steal, carry home, score, results, back to lobby | browser (`tools/smoke/ctr-desktop.ts`) |
 | Carried-relic hum and pulse (anti-stalemate) | Done |
 
-### M6–M9: not started
+### M6 — Artifact Hunt: done on desktop, not verified in headset
 
-The protocol and lobby already list Artifact Hunt, Crowd Control and Insurance Fraud as "coming soon". Their join-in-progress rules will be added with each mode.
+| Item | Status |
+|---|---|
+| 42 candidate slots in map data: 16 obvious, 14 tucked (catwalks, balconies, behind partitions/exhibits), 12 hidden (service level, past the secret door, through the crawl shaft) | unit (each slot is inside its room and not inside an exhibit) |
+| 12 artifacts per round (5 obvious, 4 tucked, 3 hidden), different every round | unit, bot |
+| Rarity scoring: common 1, rare 3, legendary 5 | unit |
+| Securing by carrying an artifact into the Registrar's Desk ring in the lobby | bot, browser |
+| KO forces a drop (shared combat system) | Done |
+| Warmer/colder hint on the wrist / desktop HUD, weaker for hidden artifacts, plus a soft tick that speeds up as you get warmer | unit, browser |
+| Free-for-all or teams (host setting on the totem); time limit (default 6 min) | Done |
+| Round ends when all are secured or time runs out | unit |
+| Join-in-progress: immediate, current world state, no retroactive credit | bot |
+| Full find → grab (E) → deliver → score on desktop controls | browser (`tools/smoke/hunt-desktop.ts`) |
+
+### M7–M9: not started
+
+Crowd Control and Insurance Fraud are listed as "coming soon" on the lobby totem. Their join-in-progress rules will be added with each mode.
 
 ## Known gaps and issues
 

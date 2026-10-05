@@ -51,3 +51,12 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Shoving.** Shove an opponent: you should see knockback, and about 5 shoves knocks them out. Being knocked out: the screen fades, you see stars, then you respawn at base.
 - [ ] **Returning.** Touch your own dropped relic: it should return instantly with "YOUR RELIC IS HOME".
 - [ ] **Alarm.** Can you hear the alarm direction from the next room?
+
+## M6 — Artifact Hunt
+
+- [ ] **Starting a hunt.** Pick Artifact Hunt on the totem and press Start. The Registrar's Desk ring and sign appear around the information desk.
+- [ ] **The hint.** Look at your left wrist: it should show Cold, Warm, Hot or Burning. Walk toward a glowing artifact: does the hint and the faster ticking sound help you find it?
+- [ ] **Spotting them.** Are artifacts easy to see? Commons are terracotta, rares are gold, legendaries are a violet-glowing crown. Note any that are too hard to see or too hard to reach. Hidden ones are in the service level, past the Egypt false door, and through the crawl shaft.
+- [ ] **Picking up.** Grab an artifact from the floor and from the top of a bench. Does reaching down feel OK?
+- [ ] **Delivering.** Walk into the gold ring at the desk while holding an artifact. You should hear a chime and see "+1/+3/+5".
+- [ ] **Teams.** Switch the totem to Teams and play 2v2.

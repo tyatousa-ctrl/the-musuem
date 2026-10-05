@@ -113,7 +113,7 @@ export class Game {
     if (this.slug && !flags.offline) await this.connect();
     if (flags.mode && this.net?.isHost()) this.net.send('selectMode', { mode: flags.mode as ModeId });
     else this.overlay.status('');
-    this.modeCtx = { net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene };
+    this.modeCtx = { net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene, playerPos: () => this.player.feet };
 
     // VR entry button; audio starts on the same gesture (brief §10).
     if (!flags.clean && !flags.cam) {
@@ -270,7 +270,7 @@ export class Game {
     this.objects.update(state, this.net?.playerId ?? '', this.player.hands, this.avatars, dt);
     this.breakables.update(state, dt);
     this.doors.update(state, dt);
-    this.updatePhase();
+    this.updatePhase(dt);
 
     const head = this.player.headPosition(tmpA);
     this.perf.rooms = this.world.cull(head);
@@ -510,7 +510,7 @@ export class Game {
   }
 
   // ─── Round flow, HUD, audio ────────────────────────────────────────────────
-  private updatePhase() {
+  private updatePhase(dt: number) {
     const s = this.net?.state;
     if (!s) return;
     const key = `${s.phase}:${s.mode}`;
@@ -531,13 +531,14 @@ export class Game {
         this.countdownShown = true;
         const lines = HOW_TO[s.mode as ModeId] ?? [];
         this.overlay.card(lines, 5000);
-        lines.forEach((l, i) => setTimeout(() => this.announcer.show(l, 'info'), i * 1700));
+        // In VR the card's lines arrive as world-space announcements; desktop has the DOM card.
+        if (this.renderer.xr.isPresenting) lines.forEach((l, i) => setTimeout(() => this.announcer.show(l, 'info'), i * 1700));
       }
       if (phase !== 'countdown') this.countdownShown = false;
       this.audio.intensity = phase === 'playing' ? 1 : 0;
       this.lastPhase = key;
     }
-    if (this.mode) this.mode.update(this.modeCtx, 0);
+    if (this.mode) this.mode.update(this.modeCtx, dt);
   }
 
   private updateHud(xr: boolean) {

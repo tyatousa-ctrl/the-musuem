@@ -116,7 +116,7 @@ export class LobbyTotem {
     if (!s) return;
     const players: string[] = [];
     s.players?.forEach((p: NetState) => players.push(`${p.id}:${p.name}:${p.status}`));
-    const key = [s.hostId, s.mode, s.phase, s.ctrScoreLimit, s.ctrTimeMin, s.tourTimeMin, players.join(','), this.audio.musicOn, this.audio.fxOn, this.copied > Date.now()].join('|');
+    const key = [s.hostId, s.mode, s.phase, s.ctrScoreLimit, s.ctrTimeMin, s.tourTimeMin, s.huntTimeMin, s.huntTeams, players.join(','), this.audio.musicOn, this.audio.fxOn, this.copied > Date.now()].join('|');
     if (key !== this.lastKey) { this.lastKey = key; this.panel.dirty = true; }
     this.panel.update();
   }
@@ -171,6 +171,12 @@ export class LobbyTotem {
     };
     if (s.mode === 'ctr') { setting('Captures to win', 'ctrScoreLimit', s.ctrScoreLimit, 1); setting('Time limit (min)', 'ctrTimeMin', s.ctrTimeMin, 1); }
     if (s.mode === 'tour') setting('Tour length (min)', 'tourTimeMin', s.tourTimeMin, 1);
+    if (s.mode === 'artifactHunt') {
+      setting('Time limit (min)', 'huntTimeMin', s.huntTimeMin, 1);
+      p.text(`Play as: ${s.huntTeams ? 'Teams' : 'Free-for-all'}`, 50, y + 38, 28, CREAM);
+      p.button('huntTeams', s.huntTeams ? 'Switch to FFA' : 'Switch to teams', W - 320, y, 280, 54, { small: true, enabled: host, onClick: () => this.net.send('setSetting', { key: 'huntTeams', value: !s.huntTeams }) });
+      y += 66;
+    }
 
     // Start + audio toggles at the bottom.
     const bottom = p.canvas.height - 100;
@@ -253,5 +259,6 @@ export class Announcer {
 /** Five-second, three-line how-to-play card shown during the countdown (brief §13.4). */
 export const HOW_TO: Partial<Record<ModeId, string[]>> = {
   ctr: ['Smash the enemy case: two hard punches or hits.', 'Grab their relic and carry it to your glowing ring.', 'You can only score while your own relic is home.'],
+  artifactHunt: ['Artifacts are hidden all over the museum.', 'Grab one and carry it to the Registrar\'s Desk in the lobby.', 'Your wrist says Warm or Cold. Hidden ones are worth more.'],
   tour: ['Explore the museum at your own pace.', 'Try the stairs, the catwalks and the service tunnels.', 'Pick things up. Throw them. Nobody is watching.'],
 };

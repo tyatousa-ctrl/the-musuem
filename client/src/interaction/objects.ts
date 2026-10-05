@@ -35,6 +35,30 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
     const glow = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, depthWrite: false, blending: THREE.AdditiveBlending }));
     glow.name = 'glow';
     g.add(glow);
+  } else if (kind === 'artifact') {
+    // Rarity reads at a glance: terracotta, gold, then a jewelled crown with a violet aura.
+    const spec = variant === 'legendary' ? { color: 0x9b6bff, glow: 0xb48cff, r: 0.32 } : variant === 'rare' ? { color: 0xf0c24a, glow: 0xffd56b, r: 0.24 } : { color: 0xb8643a, glow: 0xffc9a0, r: 0.16 };
+    const mat = new THREE.MeshLambertMaterial({ color: spec.color, emissive: spec.color, emissiveIntensity: variant === 'common' ? 0.1 : 0.4 });
+    if (variant === 'legendary') {
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.06, 12, 1, true), new THREE.MeshLambertMaterial({ color: 0xf0c24a, emissive: 0xf0c24a, emissiveIntensity: 0.4, side: THREE.DoubleSide }));
+      g.add(band);
+      for (let i = 0; i < 6; i++) { const pt = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 4), band.material); pt.position.set(Math.cos(i * 1.047) * 0.085, 0.055, Math.sin(i * 1.047) * 0.085); g.add(pt); }
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.04, 0), mat);
+      gem.position.y = 0.02; gem.position.z = 0.09;
+      g.add(gem);
+    } else if (variant === 'rare') {
+      const mask = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), mat);
+      mask.scale.set(0.85, 1.2, 0.5);
+      mask.rotation.x = Math.PI / 2;
+      g.add(mask);
+    } else {
+      const amphora = new THREE.Mesh(new THREE.LatheGeometry([0.001, 0.03, 0.06, 0.07, 0.05, 0.025, 0.035].map((r, i) => new THREE.Vector2(r, i * 0.035 - 0.1)), 10), mat);
+      g.add(amphora);
+    }
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(spec.r, 12, 8), new THREE.MeshBasicMaterial({ color: spec.glow, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending }));
+    glow.name = 'glow';
+    g.add(glow);
+    g.scale.setScalar(1.4); // big enough to spot across a room
   } else if (variant === 'vase') {
     const vase = new THREE.Mesh(new THREE.LatheGeometry([0, 0.06, 0.1, 0.08, 0.05, 0.07].map((r, i) => new THREE.Vector2(r || 0.001, i * 0.05)), 12), new THREE.MeshLambertMaterial({ color: 0x3e6fa8 }));
     vase.position.y = -0.1;
@@ -108,6 +132,7 @@ export class WorldObjects {
         if (e.obj.position.distanceTo(tmp) > 3) e.obj.position.copy(tmp);
         else e.obj.position.lerp(tmp, Math.min(1, dt * 15));
       }
+      if (e.kind === 'artifact') e.obj.rotation.y += dt * 0.8;
       if (e.kind === 'relic') {
         e.obj.rotation.y += dt * (o.status === 'home' ? 0.6 : 2);
         const glow = e.obj.getObjectByName('glow') as THREE.Mesh | undefined;

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Headless bot clients against a real server (brief §22): party by slug,
  * party full, host migration, rejoin into the same seat, join-in-progress,
@@ -45,7 +46,6 @@ function pose(room: Room, x: number, y: number, z: number, hand?: [number, numbe
   room.send('pose', { p, feetY: y, menuOpen: false });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const st = (room: Room) => room.state as any;
 
 describe('parties', () => {
@@ -200,6 +200,45 @@ describe('Capture the Relic, scripted', () => {
     expect(relic.status).toBe('dropped');
     expect(relic.x).toBeCloseTo(-17, 1);
     expect(relic.z).toBeCloseTo(10, 1);
+    await Promise.all([a.leave(), b.leave()]);
+  });
+});
+
+describe('Artifact Hunt, scripted', () => {
+  it('finds an artifact, secures it at the Registrar\'s Desk, and late joiners start at zero', async () => {
+    const a = await join('hunt-party-110', 'h1');
+    a.send('selectMode', { mode: 'artifactHunt' });
+    await waitFor(() => st(a).mode === 'artifactHunt', 2000, 'mode');
+    a.send('startRound', {});
+    await waitFor(() => st(a).phase === 'playing', 3000, 'playing');
+
+    const arts: { id: string; x: number; y: number; z: number; variant: string }[] = [];
+    st(a).objects.forEach((o: any, id: string) => { if (o.kind === 'artifact') arts.push({ id, x: o.x, y: o.y, z: o.z, variant: o.variant }); });
+    expect(arts).toHaveLength(12);
+    expect(arts.filter((x) => x.variant === 'legendary')).toHaveLength(3);
+
+    // Walk to the first artifact, pick it up, carry it to the desk.
+    const t = arts[0];
+    pose(a, t.x, t.y - 0.15, t.z + 0.3, [t.x, t.y, t.z]);
+    await sleep(80);
+    a.send('grab', { objectId: t.id, hand: 'right' });
+    await waitFor(() => st(a).objects.get(t.id)?.status === 'carried', 2000, 'carried');
+    pose(a, 19.5, 0, 2); // beside the desk, inside the 4.5 m delivery ring
+    await waitFor(() => st(a).objects.get(t.id) === undefined, 2000, 'secured');
+    const value = { common: 1, rare: 3, legendary: 5 }[t.variant as 'common'];
+    expect(st(a).players.get('h1').score).toBe(value);
+
+    // A late joiner joins immediately (not spectating) with no retroactive credit.
+    const b = await join('hunt-party-110', 'h2');
+    await waitFor(() => st(a).players.get('h2') !== undefined, 2000, 'joined');
+    expect(st(a).players.get('h2').status).toBe('active');
+    expect(st(a).players.get('h2').score).toBe(0);
+
+    a.send('endRound', {});
+    await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
+    let left = 0;
+    st(a).objects.forEach((o: any) => { if (o.kind === 'artifact') left++; });
+    expect(left).toBe(0);
     await Promise.all([a.leave(), b.leave()]);
   });
 });

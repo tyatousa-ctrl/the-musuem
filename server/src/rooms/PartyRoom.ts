@@ -217,6 +217,8 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       if (m.key === 'ctrScoreLimit') this.state.ctrScoreLimit = clamp(v, 1, 10);
       if (m.key === 'ctrTimeMin') this.state.ctrTimeMin = clamp(v, 2, 20);
       if (m.key === 'tourTimeMin') this.state.tourTimeMin = clamp(v, 1, 30);
+      if (m.key === 'huntTimeMin') this.state.huntTimeMin = clamp(v, 2, 20);
+      if (m.key === 'huntTeams') this.state.huntTeams = !!m.value;
     });
     this.on('startRound', (p) => { if (this.isHost(p) && this.state.phase === 'lobby') this.startCountdown(); });
     this.on('endRound', (p) => {

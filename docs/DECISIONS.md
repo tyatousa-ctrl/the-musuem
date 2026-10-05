@@ -45,3 +45,9 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 **Team names.** Team A is the **Falcons** (gold, North Court, Golden Falcon relic). Team B is the **Masks** (jade, South Court, Jade Mask relic).
 
 **Desktop players in competitive rounds.** Allowed for now (open question 6). Desktop reach and click-to-punch are tuned so they are neither helpless nor dominant.
+
+**Artifact rarity follows placement tier.** Obvious slots hold commons (1 point), tucked slots rares (3), hidden slots legendaries (5). The brief describes tiers and rarities separately. Tying them keeps "harder to find, worth more" readable at a glance, and the values in `tunables.ts` can still flatten scoring. Each round picks 12 of 42 slots as 5 obvious, 4 tucked and 3 hidden.
+
+**Registrar's Desk is the lobby information desk.** It is a 4.5 m delivery ring around the desk, stored as a `desk` zone in map data. Delivery happens automatically when a carrier's feet enter the ring; there is no extra button to press.
+
+**Warmer/colder is client-side.** The hint is computed on the client from synced artifact positions using `hintHeat` in `shared/rules/hunt.ts`. Each tier has a range (obvious 40 m, tucked 24 m, hidden 12 m), and vertical distance counts double. A determined player could read positions from network traffic. That is acceptable for a friends-only game.

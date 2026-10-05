@@ -85,7 +85,15 @@ export const tunables = {
     /** Carried relic hums and pulses (anti-stalemate). */
     carrierHum: true,
   },
-  artifactHunt: { artifacts: 12, timeLimitSec: 6 * 60, valueCommon: 1, valueRare: 3, valueLegendary: 5 },
+  artifactHunt: {
+    artifacts: 12,
+    timeLimitSec: 6 * 60,
+    valueCommon: 1,
+    valueRare: 3,
+    valueLegendary: 5,
+    /** Planar radius around the Registrar's Desk that secures a carried artifact, m. */
+    deliverRadius: 4.5,
+  },
   crowdControl: { waves: 5, maxAgents: 40 },
   insuranceFraud: { timeLimitSec: 5 * 60, securityHoldSec: 8, ultraFinalShare: 0.6 },
 } as const;

@@ -19,7 +19,7 @@ export interface ModeInfo {
 /** Shown on the lobby panel. Unavailable modes are visible but locked. */
 export const MODE_CATALOG: ModeInfo[] = [
   { id: 'ctr', name: 'Capture the Relic', pitch: 'Smash their case, steal their relic, carry it home.', players: '2–4 · teams', available: true },
-  { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: false },
+  { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: true },
   { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: false },
   { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '2–4 · FFA', available: false },
   { id: 'tour', name: 'Free Tour', pitch: 'A timed wander. Explore, practise, mess about.', players: '1–4', available: true },
@@ -70,4 +70,4 @@ export interface ServerEvents {
   pong: { t: number; server: number };
 }
 
-export const SETTINGS_KEYS = ['ctrScoreLimit', 'ctrTimeMin', 'tourTimeMin'] as const;
+export const SETTINGS_KEYS = ['ctrScoreLimit', 'ctrTimeMin', 'tourTimeMin', 'huntTimeMin', 'huntTeams'] as const;

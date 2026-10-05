@@ -1,6 +1,7 @@
 import type {
   Block, Door, MuseumMap, Platform, Portal, Rail, Room, Slot, Spawn, Stair, Zone,
 } from './types.js';
+import { groundHeightAt } from './ground.js';
 
 /*
  * The museum, as data. +x east, +z south, north is −z. Ground floor y = 0,
@@ -289,6 +290,8 @@ const zones: Zone[] = [
   { id: 'chokeDinoN', kind: 'choke', room: 'dinoHall', center: [-17, 0, -36], radius: 5 },
   { id: 'chokeDinoS', kind: 'choke', room: 'dinoHall', center: [-17, 0, 36], radius: 5 },
   { id: 'restrictedService', kind: 'restricted', room: 'service', center: [12, -6, 0], radius: 30 },
+  // Artifact Hunt: carry finds to the Registrar's Desk (the information desk) to secure them.
+  { id: 'registrarDesk', kind: 'desk', room: 'lobby', center: [16, 0, 0], radius: 4.5 },
 ];
 
 const slots: Slot[] = [
@@ -311,3 +314,61 @@ export const museum: MuseumMap = {
   rooms, portals, platforms, stairs, rails, blocks, doors, spawns, zones, slots, landmarks,
   exteriorFence: { x0: 39, x1: 61, z0: -40, z1: 40 },
 };
+
+/*
+ * Artifact Hunt candidate slots (brief §16). [id, room, x, z, surface y hint, tier].
+ * Obvious: in plain view. Tucked: catwalks, balconies, behind partitions and
+ * exhibits. Hidden: the service level, past the secret door and the crawl shaft.
+ * The y is resolved against the map so every artifact sits on its surface.
+ */
+const ARTIFACT_SLOTS: [string, string, number, number, number, NonNullable<Slot['tier']>][] = [
+  // Obvious (16)
+  ['dinoRex', 'dinoHall', -13.6, -24.3, 0.6, 'obvious'],
+  ['dinoSauro', 'dinoHall', -13.9, 7.4, 0.6, 'obvious'],
+  ['dinoTrike', 'dinoHall', -13.6, 24.3, 0.6, 'obvious'],
+  ['gal1Bench', 'gallery1', -36, -32, 0.45, 'obvious'],
+  ['gal3Bench', 'gallery3', -36, -12, 0.45, 'obvious'],
+  ['gal5Bench', 'gallery5', -36, 12, 0.45, 'obvious'],
+  ['gal7Bench', 'gallery7', -36, 32, 0.45, 'obvious'],
+  ['sculptFloor', 'gallery4', -38.5, 3.5, 0, 'obvious'],
+  ['northObelisk', 'northCourt', -2.2, -46.5, 0, 'obvious'],
+  ['northPodium', 'northCourt', 17.2, -50.2, 1.2, 'obvious'],
+  ['northLion', 'northCourt', -30.5, -43.8, 0, 'obvious'],
+  ['southMonument', 'southCourt', 23.3, 45.6, 1.0, 'obvious'],
+  ['southFloor', 'southCourt', -30.5, 50, 0, 'obvious'],
+  ['culturesPodium', 'cultures', 16, 30.5, 0.6, 'obvious'],
+  ['culturesFloor', 'cultures', 4, 20.5, 0, 'obvious'],
+  ['lobbyNiche', 'lobby', 35, -9.6, 0, 'obvious'],
+  // Tucked (14)
+  ['catE1', 'dinoHall', -8.5, -15, 7, 'tucked'],
+  ['catW1', 'dinoHall', -25.5, 15, 7, 'tucked'],
+  ['catE2', 'dinoHall', -8.5, 28, 7, 'tucked'],
+  ['balconyE', 'lobby', 37.5, 6, 7, 'tucked'],
+  ['balconyN', 'lobby', 2, -9.5, 7, 'tucked'],
+  ['mezzanine', 'southCourt', 35, 50, 5, 'tucked'],
+  ['egyptTomb', 'egyptN1', 20, -34.6, 0, 'tucked'],
+  ['egyptStatues', 'egyptN2', 30, -29, 0, 'tucked'],
+  ['egyptOffering', 'egyptS', 10, -13.5, 0, 'tucked'],
+  ['mastabaPassage', 'egyptM', 13, -21, 0, 'tucked'],
+  ['behindPartition2', 'gallery2', -36, -23.2, 0, 'tucked'],
+  ['behindPartition6', 'gallery6', -36, 23.2, 0, 'tucked'],
+  ['behindDiorama', 'cultures', 36, 21.8, 0, 'tucked'],
+  ['behindTemple', 'northCourt', 24, -59.1, 1.2, 'tucked'],
+  // Hidden (12)
+  ['svcNorth', 'service', 12, -30, -6, 'hidden'],
+  ['svcSouth', 'service', 12, 20, -6, 'hidden'],
+  ['svcEast1', 'svcEast', 30, -10, -6, 'hidden'],
+  ['svcEast2', 'svcEast', 30, 25, -6, 'hidden'],
+  ['freightN', 'svcCrossN', 20, -30, -6, 'hidden'],
+  ['freightS', 'svcCrossS', 22, 30, -6, 'hidden'],
+  ['securityOffice', 'security', 16, 3, -6, 'hidden'],
+  ['labTable', 'lab', 26, -2, -5.1, 'hidden'],
+  ['stairNBottom', 'stairN', 12, -45.8, -6, 'hidden'],
+  ['pastSecretDoor', 'egyptN2', 16, -27.4, 0, 'hidden'],
+  ['pastCrawl', 'egyptM', 31, -17, 0, 'hidden'],
+  ['behindSarcophagus', 'egyptS', 31, -15.05, 0, 'hidden'],
+];
+
+for (const [id, room, x, z, yHint, tier] of ARTIFACT_SLOTS) {
+  museum.slots.push({ id: `artifact.${id}`, kind: 'artifact', room, tier, pos: [x, groundHeightAt(museum, x, yHint, z) + 0.15, z] });
+}

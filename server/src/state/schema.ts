@@ -82,6 +82,9 @@ export const PartyState = schema({
   ctrScoreLimit: t.uint8().default(3),
   ctrTimeMin: t.uint8().default(8),
   tourTimeMin: t.uint8().default(3),
+  huntTimeMin: t.uint8().default(6),
+  /** Artifact Hunt: false = free-for-all, true = teams. */
+  huntTeams: t.boolean().default(false),
   players: t.map(PlayerT),
   objects: t.map(ObjectT),
   breakables: t.map(BreakableT),
