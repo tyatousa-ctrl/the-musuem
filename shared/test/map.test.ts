@@ -40,6 +40,23 @@ describe('museum map data', () => {
     expect(groundHeightAt(museum, 42.1, 0.5, 0)).toBeCloseTo(-0.03, 1);
   });
 
+  it('every elevator stop is a walkable floor inside its room', () => {
+    for (const e of museum.elevators) {
+      expect(e.stops.length, e.id).toBeGreaterThanOrEqual(2);
+      for (const s of e.stops) {
+        expect(roomAt(museum, e.x, s.y + 1, e.z)?.id, `${e.id}@${s.label}`).toBe(s.room);
+        expect(groundHeightAt(museum, e.x, s.y, e.z), `${e.id}@${s.label}`).toBeCloseTo(s.y, 2);
+      }
+    }
+  });
+
+  it('has a second floor reachable by stairs and elevators', () => {
+    const upstairs = museum.rooms.filter((r) => r.floorY >= 8);
+    expect(upstairs.length).toBeGreaterThanOrEqual(10);
+    expect(museum.stairs.some((s) => s.y1 >= 8)).toBe(true);
+    expect(museum.elevators.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('meets the route-length rule (brief §6.3)', () => {
     const { failures } = measureRoutes(museum);
     expect(failures).toEqual([]);

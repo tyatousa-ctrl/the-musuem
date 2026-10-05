@@ -99,6 +99,14 @@ export class Player {
 
   setFade(target: number) { this.fadeTarget = target; }
 
+  /** Instant black, held briefly, then fade back in (elevator rides). */
+  flash(hold = 0.3) {
+    (this.fade.material as THREE.MeshBasicMaterial).opacity = 1;
+    this.fade.visible = true;
+    this.flashHold = hold;
+  }
+  private flashHold = 0;
+
   update(dt: number, a: Actions, menuOpen: boolean) {
     const p = tunables.player;
     const xr = this.inXR;
@@ -164,7 +172,8 @@ export class Player {
     const vm = this.vignette.material as THREE.MeshBasicMaterial;
     vm.opacity += (vTarget - vm.opacity) * Math.min(1, dt * 8);
     const fm = this.fade.material as THREE.MeshBasicMaterial;
-    const fTarget = Math.max(this.fadeTarget, headFade);
+    this.flashHold = Math.max(0, this.flashHold - dt);
+    const fTarget = Math.max(this.fadeTarget, headFade, this.flashHold > 0 ? 1 : 0);
     fm.opacity += (fTarget - fm.opacity) * Math.min(1, dt * 6);
     this.fade.visible = fm.opacity > 0.01;
     this.vignette.visible = vm.opacity > 0.01;

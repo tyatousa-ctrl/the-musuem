@@ -87,7 +87,7 @@ How each item was verified:
 
 | Item | Status |
 |---|---|
-| 42 candidate slots in map data: 16 obvious, 14 tucked (catwalks, balconies, behind partitions/exhibits), 12 hidden (service level, past the secret door, through the crawl shaft) | unit (each slot is inside its room and not inside an exhibit) |
+| 43 candidate slots in map data (re-placed for the new layout): 17 obvious, 14 tucked (catwalks, balconies, behind partitions/exhibits), 12 hidden (service level, past the secret door, through the crawl shaft) | unit (each slot is inside its room and not inside an exhibit) |
 | 12 artifacts per round (5 obvious, 4 tucked, 3 hidden), different every round | unit, bot |
 | Rarity scoring: common 1, rare 3, legendary 5 | unit |
 | Securing by carrying an artifact into the Registrar's Desk ring in the lobby | bot, browser |
@@ -97,6 +97,21 @@ How each item was verified:
 | Round ends when all are secured or time runs out | unit |
 | Join-in-progress: immediate, current world state, no retroactive credit | bot |
 | Full find → grab (E) → deliver → score on desktop controls | browser (`tools/smoke/hunt-desktop.ts`) |
+
+### Met-style layout, second floor, elevators (requested between M6 and M7)
+
+| Item | Status |
+|---|---|
+| Wider Great Hall (27 × 56 m, three domes, balcony ring at 8 m) with a 16 × 5 m hanging "Welcome to The Museum" banner | screenshot (`greathall.entrance`) |
+| Met-style plan: Great Hall → Grand Staircase → Dinosaur Hall spine; Egypt north, Greek & Roman south; Arms & Armor, World Cultures, American Wing, Sculpture Court, Modern wings; north/south courts | screenshot (23 bookmarks), route rule |
+| Second floor at 8 m: Great Hall balcony, Asian Art, Musical Instruments, a 10-room European Paintings grid, catwalks and bridges over the Dinosaur Hall, court mezzanines | unit (≥10 upstairs rooms) |
+| Stairs to floor 2: Grand Staircase, two Dinosaur Hall catwalk stairs, two court stairs | unit, browser (sprinted up the Grand Staircase to y 7.9) |
+| Four elevators (two in the Great Hall, two in the courts), server-validated teleport with a fade and a ding; button panel in VR, E on desktop | unit, bot, browser (up to 8 m and back down) |
+| Five route types between bases: fast 126 m; west 1.30×, east 1.32×, upper floor 1.44×, service 1.77× | `npm run measure-routes` |
+| Sprint: desktop Shift 4.2 m/s vs walk 2.6 m/s; VR stick-click toggle that stays on while moving | browser (measured speeds), unit (`client/test/xr-input.test.ts`) |
+| Budgets: every bookmark ≤ 150 draw calls (worst 142) | screenshot run (`docs/screens/perf.tsv`) |
+
+Not verified in headset.
 
 ### M7–M9: not started
 

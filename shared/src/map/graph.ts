@@ -95,7 +95,7 @@ export function shortestPath(
   return { length: d.get(to)!, path };
 }
 
-export type RouteKind = 'fast' | 'tacticalWest' | 'tacticalEast' | 'hidden';
+export type RouteKind = 'fast' | 'tacticalWest' | 'tacticalEast' | 'tacticalUpper' | 'hidden';
 
 /** Rooms each route type may use (brief §6.3). Courts are always allowed. */
 export function routeRooms(map: MuseumMap, kind: RouteKind): Set<RoomId> {
@@ -103,8 +103,9 @@ export function routeRooms(map: MuseumMap, kind: RouteKind): Set<RoomId> {
   const ids = map.rooms.map((r) => r.id);
   switch (kind) {
     case 'fast': return new Set([...courts, 'dinoHall']);
-    case 'tacticalWest': return new Set([...courts, ...ids.filter((id) => id.startsWith('gallery'))]);
-    case 'tacticalEast': return new Set([...courts, 'lobby', 'cultures', ...ids.filter((id) => id.startsWith('egypt'))]);
+    case 'tacticalWest': return new Set([...courts, 'american', 'sculptureCourt', 'modern']);
+    case 'tacticalEast': return new Set([...courts, 'greatHall', 'greek', ...ids.filter((id) => id.startsWith('egypt'))]);
+    case 'tacticalUpper': return new Set([...courts, ...ids.filter((id) => id.startsWith('paint'))]);
     case 'hidden': return new Set([...courts, ...ids.filter((id) => map.rooms.find((r) => r.id === id)!.floorY < 0)]);
   }
 }
@@ -119,12 +120,13 @@ export const ROUTE_TARGETS: Record<RouteKind, [number, number]> = {
   fast: [1, 1],
   tacticalWest: [1.25, 1.5],
   tacticalEast: [1.25, 1.5],
+  tacticalUpper: [1.25, 1.5],
   hidden: [1.6, 2.0],
 };
 
 export function measureRoutes(map: MuseumMap): { reports: RouteReport[]; failures: string[] } {
   const g = buildWaypointGraph(map);
-  const kinds: RouteKind[] = ['fast', 'tacticalWest', 'tacticalEast', 'hidden'];
+  const kinds: RouteKind[] = ['fast', 'tacticalWest', 'tacticalEast', 'tacticalUpper', 'hidden'];
   const reports: RouteReport[] = [];
   const failures: string[] = [];
   let fast = 0;

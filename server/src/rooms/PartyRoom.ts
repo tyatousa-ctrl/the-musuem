@@ -196,6 +196,19 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       const target = this.state.players.get(String(m.targetId));
       if (target) this.systems.combat.hit(p, target, m.kind === 'bonk' ? 'bonk' : 'shove', num(m.speed), vec(m.dir));
     });
+    this.on('elevator', (p, m) => {
+      const e = museum.elevators.find((x) => x.id === String(m.id));
+      const target = e?.stops.find((s) => s.floor === Number(m.floor));
+      if (!e || !target || p.status !== 'active') return;
+      // Must be standing inside the cab, at one of its stops.
+      const inCab = Math.abs(p.head.px - e.x) < 1.6 && Math.abs(p.head.pz - e.z) < 1.6;
+      const here = e.stops.find((s) => Math.abs(p.feetY - s.y) < 1.2);
+      if (!inCab || !here || here === target) return;
+      this.teleportGrace.set(p.id, Date.now() + 1500);
+      p.head.py += target.y - here.y;
+      p.feetY = target.y;
+      this.sendTo(p.id, 'teleport', { pos: [p.head.px, target.y, p.head.pz], yaw: 0, fade: true, keepYaw: true });
+    });
     this.on('useDoor', (p, m) => {
       const door = this.state.doors.get(String(m.id));
       const def = museum.doors.find((d) => d.id === door?.id);

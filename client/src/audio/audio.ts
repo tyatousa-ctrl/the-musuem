@@ -8,7 +8,7 @@ import { loadPref, savePref } from '../core/identity';
  * licensing; real CC0 recordings can replace any buffer later through the
  * asset manifest. Two independent buses, Music and FX, persisted locally.
  */
-export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door';
+export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door' | 'ding';
 
 const ACOUSTICS: Record<Room['acoustic'], { decay: number; wet: number; amb: 'murmur' | 'street' | 'water' | 'hum' | 'none' }> = {
   hall: { decay: 3.2, wet: 0.45, amb: 'murmur' },
@@ -240,6 +240,7 @@ export class AudioEngine {
       return (Math.sin(2 * Math.PI * notes[i] * t) * 0.5 + Math.sin(2 * Math.PI * notes[i] * 2 * t) * 0.15) * env(t - i * 0.16, 0.01, i === 3 ? 0.5 : 0.12) * 0.5;
     }));
     this.buffers.set('bad', this.buffer(0.8, (t) => Math.sin(2 * Math.PI * (300 - t * 120) * t) * env(t, 0.01, 0.25) * 0.35));
+    this.buffers.set('ding', this.buffer(1.2, (t) => (Math.sin(2 * Math.PI * 1318 * t) * 0.5 + Math.sin(2 * Math.PI * 1046 * t) * (t > 0.18 ? 0.5 : 0)) * env(t, 0.003, 0.35) * 0.3));
     this.buffers.set('ui', this.buffer(0.08, (t) => Math.sin(2 * Math.PI * 1600 * t) * env(t, 0.001, 0.02) * 0.3));
     this.buffers.set('door', this.buffer(0.9, (t) => { lp += (rnd() - lp) * 0.02; return (lp * 3 + Math.sin(2 * Math.PI * 70 * t) * 0.3) * env(t, 0.05, 0.3); }));
     const step = (bright: number, body: number, len: number) => this.buffer(len, (t) => { lp += (rnd() - lp) * bright; return (lp * 2 + Math.sin(2 * Math.PI * body * t) * 0.3) * env(t, 0.002, len / 4) * 0.5; });

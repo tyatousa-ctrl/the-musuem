@@ -9,7 +9,8 @@ export type RoomId = string;
 
 export type RoomStyle =
   | 'exterior' | 'lobby' | 'dino' | 'gallery' | 'sculpture' | 'egypt'
-  | 'cultures' | 'courtNorth' | 'courtSouth' | 'service' | 'stairwell' | 'office';
+  | 'cultures' | 'courtNorth' | 'courtSouth' | 'service' | 'stairwell' | 'office'
+  | 'stairhall' | 'arms' | 'american' | 'modern' | 'greek';
 
 export interface Room {
   id: RoomId;
@@ -79,7 +80,8 @@ export interface Rail { x0: number; z0: number; x1: number; z1: number; ya: numb
 export type BlockKind =
   | 'partition' | 'plinth' | 'mastaba' | 'sarcophagus' | 'statue' | 'diorama'
   | 'totem' | 'desk' | 'bench' | 'temple' | 'pool' | 'crate' | 'lintel'
-  | 'case' | 'planter' | 'barrier' | 'sculpture' | 'obelisk';
+  | 'case' | 'planter' | 'barrier' | 'sculpture' | 'obelisk'
+  | 'knight' | 'colonnade';
 
 /** Solid axis-aligned exhibit or obstacle. Rendered by kind; collides unless `noCollide`. */
 export interface Block {
@@ -99,6 +101,18 @@ export interface Door {
 }
 
 export interface Spawn { id: string; pos: Vec3; yaw: number }
+
+/**
+ * An elevator: one cab footprint (centre x/z, 2.8 m square) with a stop on each
+ * floor. Riding is a short fade and a server teleport between stops (no moving
+ * floor: better for comfort). `facing` is the open side of the cab.
+ */
+export interface Elevator {
+  id: string;
+  x: number; z: number;
+  facing: '+x' | '-x' | '+z' | '-z';
+  stops: { floor: number; label: string; room: RoomId; y: number }[];
+}
 
 export interface Zone {
   id: string; kind: 'capture' | 'restricted' | 'exit' | 'choke' | 'desk';
@@ -126,6 +140,7 @@ export interface MuseumMap {
   rails: Rail[];
   blocks: Block[];
   doors: Door[];
+  elevators: Elevator[];
   spawns: {
     exterior: Spawn[];
     lobby: Spawn[];

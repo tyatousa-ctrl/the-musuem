@@ -47,6 +47,8 @@ export interface ClientMessages {
   hitBreakable: { id: string; hand: Hand; speed: number };
   hitPlayer: { targetId: string; hand: Hand; speed: number; dir: [number, number, number]; kind: 'shove' | 'bonk' };
   useDoor: { id: string };
+  /** Ride an elevator to a floor (player must be standing in the cab). */
+  elevator: { id: string; floor: number };
   selectMode: { mode: ModeId };
   setSetting: { key: string; value: number | string | boolean };
   startRound: Record<string, never>;
@@ -63,7 +65,8 @@ export interface ServerEvents {
   ko: { playerId: string; pos: [number, number, number] };
   hit: { attackerId: string; targetId: string; kind: 'shove' | 'bonk'; pos: [number, number, number] };
   knockback: { vel: [number, number, number] };
-  teleport: { pos: [number, number, number]; yaw: number };
+  /** fade: brief fade to black (elevators); keepYaw: keep the player's current facing. */
+  teleport: { pos: [number, number, number]; yaw: number; fade?: boolean; keepYaw?: boolean };
   scored: { team: Team; playerId: string; scoreA: number; scoreB: number };
   announcement: { text: string; tone: 'info' | 'good' | 'bad' | 'alert'; team?: Team };
   grabRejected: { objectId: string; hand: Hand };

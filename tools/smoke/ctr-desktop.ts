@@ -11,6 +11,10 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { chromium, type Page } from 'playwright';
+import { museum } from '@museum/shared';
+
+const [CX, , ZB] = museum.slots.find((x) => x.id === 'caseB')!.pos;
+const ZA = museum.slots.find((x) => x.id === 'caseA')!.pos[2];
 
 const base = process.env.SMOKE_BASE ?? 'http://localhost:5174';
 const browser = await chromium.launch({
@@ -45,8 +49,8 @@ const atk = pages[teams.indexOf('A')];
 console.log('teams', teams);
 const go = (x: number, y: number, z: number, yaw: number, pitch: number) => atk.evaluate(`(() => { const g = ${G}; g.player.teleport([${x}, ${y}, ${z}], ${yaw}); g.player.pitch = ${pitch}; })()`);
 
-// Stand 1.2 m north of case B, facing south (yaw π), looking slightly down.
-await go(-17, 0, 50.2, Math.PI, -0.2);
+// Stand 1.8 m north of case B, facing south (yaw π), looking slightly down.
+await go(CX, 0, ZB - 1.8, Math.PI, -0.2);
 await atk.waitForTimeout(1500);
 for (let i = 1; i <= 2; i++) {
   await atk.evaluate(`${G}.debugClick()`);
@@ -56,7 +60,7 @@ for (let i = 1; i <= 2; i++) {
 console.log('after punches', await state(host));
 
 // Grab the relic with E.
-await go(-17, 0, 50.9, Math.PI, -0.35);
+await go(CX, 0, ZB - 1.1, Math.PI, -0.35);
 await atk.waitForTimeout(1200);
 await atk.keyboard.press('KeyE');
 await atk.waitForTimeout(500);
@@ -64,11 +68,11 @@ await host.waitForFunction(`${G}.net.state.objects.get('relicB')?.status === 'ca
 console.log('after grab', await state(host));
 
 // Carry it home into the North Court capture ring.
-await go(-17, 0, 30, 0, 0);
+await go(CX, 0, 30, 0, 0);
 await atk.waitForTimeout(800);
-await go(-17, 0, -40, 0, 0);
+await go(CX, 0, -40, 0, 0);
 await atk.waitForTimeout(800);
-await go(-16.5, 0, -50, 0, 0);
+await go(CX + 0.5, 0, ZA + 1.5, 0, 0);
 await host.waitForFunction(`${G}.net.state.scoreA === 1`, undefined, { timeout: 10000 }).catch(() => fail('capture did not score'));
 await host.waitForFunction(`${G}.net.state.phase === 'roundEnd'`, undefined, { timeout: 10000 }).catch(() => fail('round did not end'));
 console.log('end', await state(host));

@@ -9,6 +9,9 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { chromium } from 'playwright';
+import { museum } from '@museum/shared';
+
+const DESK = museum.zones.find((z) => z.kind === 'desk')!.center;
 
 const base = process.env.SMOKE_BASE ?? 'http://localhost:5174';
 const browser = await chromium.launch({
@@ -49,7 +52,7 @@ await page.keyboard.press('KeyE');
 await page.waitForFunction(`${G}.net.state.objects.get('${target.id}')?.status === 'carried'`, undefined, { timeout: 8000 }).catch(() => fail('grab did not register'));
 
 // Carry to the desk.
-await page.evaluate(`${G}.player.teleport([19.6, 0, 2], Math.PI / 2)`);
+await page.evaluate(`${G}.player.teleport([${DESK[0] + 3.5}, 0, 1], Math.PI / 2)`);
 await page.waitForFunction(`${G}.net.me().score >= 1`, undefined, { timeout: 10000 }).catch(() => fail('delivery did not score'));
 console.log('score', await page.evaluate(`${G}.net.me().score`), 'left', await page.evaluate(`(() => { let n = 0; ${G}.net.state.objects.forEach((o) => { if (o.kind === 'artifact') n++; }); return n; })()`));
 await page.waitForTimeout(800);

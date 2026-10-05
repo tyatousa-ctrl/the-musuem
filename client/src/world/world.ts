@@ -26,7 +26,8 @@ function visibilitySets(map: MuseumMap): Map<RoomId, Set<RoomId>> {
   const adj = adjacency(map);
   const big = new Map<RoomId, Set<RoomId>>();
   for (const r of map.rooms) big.set(r.id, new Set());
-  for (const p of map.portals) if (p.kind === 'grand' || p.kind === 'arch' || p.kind === 'opening' || p.width >= 4) {
+  // Only true archways extend visibility a second room deep; doors and stair holes show just the next room.
+  for (const p of map.portals) if (p.kind === 'grand' || p.kind === 'arch') {
     big.get(p.a)!.add(p.b); big.get(p.b)!.add(p.a);
   }
   const vis = new Map<RoomId, Set<RoomId>>();

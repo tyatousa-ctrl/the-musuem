@@ -367,6 +367,46 @@ export function buildBlock(sink: Sink, b: Block) {
       } else solid('plain', 0x555555);
       break;
     }
+    case 'knight': {
+      // Equestrian armour on a low plinth: horse (barding) and armoured rider with a raised lance.
+      sink.box('stone', b.x0, b.y0, b.z0, b.x1, b.y1, b.z1, { tint: 0x6a6258, collide });
+      const top = b.y1;
+      const along = d > w; // horse faces along the long axis
+      const steel = 0x9aa3ad, cloth = [0x8a1f24, 0x1f3a6a, 0x2a5a2a][Math.floor(rand() * 3)];
+      const rot = new THREE.Matrix4().makeRotationY(along ? 0 : Math.PI / 2);
+      const at = (g: THREE.BufferGeometry) => { g.applyMatrix4(rot); g.translate(cx, top, cz); return g; };
+      const body = new THREE.CapsuleGeometry(0.42, 1.3, 4, 10); body.rotateX(Math.PI / 2); body.translate(0, 1.45, 0);
+      const neck = new THREE.CapsuleGeometry(0.2, 0.7, 4, 8); neck.rotateX(-0.7); neck.translate(0, 1.95, -0.95);
+      const head = new THREE.BoxGeometry(0.28, 0.32, 0.6); head.translate(0, 2.3, -1.35);
+      const legs = [[-0.25, -0.65], [0.25, -0.65], [-0.25, 0.65], [0.25, 0.65]].map(([lx, lz]) => { const l = new THREE.CylinderGeometry(0.08, 0.07, 1.1, 6); l.translate(lx, 0.55, lz); return l; });
+      sink.add('plain', at(mergeParts([body, neck, head, ...legs])), undefined, { tint: steel, gain: 1.15 });
+      const barding = new THREE.BoxGeometry(1.0, 0.5, 1.9); barding.translate(0, 1.15, 0);
+      sink.add('plain', at(barding), undefined, { tint: cloth, gain: 1.1 });
+      const torso = new THREE.CapsuleGeometry(0.22, 0.5, 4, 8); torso.translate(0, 2.35, 0.1);
+      const helm = new THREE.CylinderGeometry(0.15, 0.17, 0.32, 8); helm.translate(0, 2.95, 0.1);
+      const lance = new THREE.CylinderGeometry(0.03, 0.05, 3.6, 6); lance.rotateX(-1.25); lance.translate(0.3, 2.9, -0.9);
+      const shield = new THREE.BoxGeometry(0.06, 0.6, 0.45); shield.translate(-0.35, 2.3, 0.1);
+      sink.add('plain', at(mergeParts([torso, helm])), undefined, { tint: 0xc3ccd6, gain: 1.2 });
+      sink.add('wood', at(lance), undefined, { tint: 0xc8a070 });
+      sink.add('plain', at(shield), undefined, { tint: cloth, gain: 1.1 });
+      sink.collideBox(cx - (along ? 0.55 : 1.1), top, cz - (along ? 1.1 : 0.55), cx + (along ? 0.55 : 1.1), top + 2, cz + (along ? 1.1 : 0.55));
+      break;
+    }
+    case 'colonnade': {
+      // A classical bank facade rebuilt indoors: stylobate, columns, entablature and pediment.
+      const along = d > w;
+      const len = along ? d : w;
+      sink.box('stone', b.x0, b.y0, b.z0, b.x1, b.y0 + 0.5, b.z1, { tint: 0xeee7da, collide });
+      const n = Math.max(2, Math.round(len / 4.5));
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const px = along ? cx : b.x0 + t * w, pz = along ? b.z0 + t * d : cz;
+        sink.add('stone', column(b.y1 - b.y0 - 1.6, 0.4, 'corinthian', 16), M(px, b.y0 + 0.5, pz), { tint: 0xf3ede2 });
+        sink.collideBox(px - 0.45, b.y0, pz - 0.45, px + 0.45, b.y1, pz + 0.45);
+      }
+      sink.box('stone', b.x0, b.y1 - 1.1, b.z0, b.x1, b.y1, b.z1, { tint: 0xf1eadc });
+      break;
+    }
     case 'totem': case 'lintel': default:
       // The lobby panel totem is drawn by the UI layer; blocks here only collide.
       if (collide) sink.collideBox(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);

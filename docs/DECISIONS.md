@@ -51,3 +51,12 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 **Registrar's Desk is the lobby information desk.** It is a 4.5 m delivery ring around the desk, stored as a `desk` zone in map data. Delivery happens automatically when a carrier's feet enter the ring; there is no extra button to press.
 
 **Warmer/colder is client-side.** The hint is computed on the client from synced artifact positions using `hintHeat` in `shared/rules/hunt.ts`. Each tier has a range (obvious 40 m, tucked 24 m, hidden 12 m), and vertical distance counts double. A determined player could read positions from network traffic. That is acceptable for a friends-only game.
+
+**Met-style floor plan.** At the human's request (with a Met floor plan for reference) the museum was rebuilt to follow the Met's layout: entrance on the east facade, a wide Great Hall, the Grand Staircase straight ahead, and a long central hall behind it (our Dinosaur Hall, standing in for the Met's Medieval hall). Wings sit to the north and south, and there is a second floor at 8 m. The relic bases moved to the north and south courts at (-12, ±63). The fast route runs down the Dinosaur Hall; flank routes go through the west wings, through Egypt/Great Hall/Greek, over the upstairs paintings grid, and through the service level. All of them satisfy the brief §6.3 ratios.
+
+**Elevators are short teleports with a fade.** A moving cab in VR causes motion sickness and is a physics problem (players standing on a moving floor). Each elevator is a cab at every stop. Pressing a floor asks the server, which checks that you are in the cab at a stop, moves you, and tells the client to cut to black for 0.3 s and play a ding. You keep your facing. That is comfortable, cheap and cheat-resistant. Stairs remain the "real" way up, and they are faster for a sprinting player.
+
+**Only grand openings extend visibility two rooms.** With longer sightlines the Dinosaur Hall reached 173 draw calls. Portal culling now only looks two rooms deep through 'grand' and 'arch' openings; ordinary doors show just the next room. Worst bookmark is now 142 draws.
+
+**Banner spelling.** The banner reads "Welcome to The Museum", using the same `MUSEUM_NAME` as the facade inscription. The request spelled it "Musuem" (as the repo name does); it is a one-line change if that spelling is intended.
+

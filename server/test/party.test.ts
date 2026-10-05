@@ -6,7 +6,17 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, type Room } from '@colyseus/sdk';
-import type { PoseArray } from '@museum/shared';
+import { museum, type PoseArray } from '@museum/shared';
+
+// Positions come from the map data so the tests follow layout changes.
+const slot = (id: string) => museum.slots.find((x) => x.id === id)!.pos;
+const [CX, , ZB] = slot('caseB');
+const ZA = slot('caseA')[2];
+const CASE_B: [number, number, number] = [CX, 1.45, ZB];
+const RELIC_B: [number, number, number] = [CX, 1.28, ZB];
+const towardCentre = (z: number, d: number) => z - Math.sign(z) * d;
+const DESK = museum.zones.find((z) => z.kind === 'desk')!.center;
+const SPAWN_B = museum.spawns.teamB[0].pos;
 
 process.env.MUSEUM_TUNABLES = JSON.stringify({
   round: { countdownSec: 0.2, resultsSec: 0.3 },
@@ -128,14 +138,13 @@ describe('Capture the Relic, scripted', () => {
     const attackerRoom = players.get('m1').team === 'A' ? a : b;
     const defenderRoom = attackerRoom === a ? b : a;
     // Keep the defender parked at their own base, far from the action.
-    pose(defenderRoom, 35, 0, 56);
+    pose(defenderRoom, SPAWN_B[0], 0, SPAWN_B[2]);
     const announcements: string[] = [];
     attackerRoom.onMessage('announcement', (m: { text: string }) => announcements.push(m.text));
-    const caseB: [number, number, number] = [-17, 1.45, 52];
 
     for (let round = 1; round <= 2; round++) {
       // Walk up to B's case and punch it twice.
-      pose(attackerRoom, -17, 0, 50.8, caseB);
+      pose(attackerRoom, CX, 0, towardCentre(ZB, 1.2), CASE_B);
       await sleep(80);
       attackerRoom.send('hitBreakable', { id: 'caseB', hand: 'right', speed: 4 });
       await waitFor(() => st(a).breakables.get('caseB')?.stage === 1, 2000, 'cracked');
@@ -144,13 +153,13 @@ describe('Capture the Relic, scripted', () => {
       await waitFor(() => st(a).breakables.get('caseB')?.stage === 2, 2000, 'shattered');
 
       // Grab the relic and carry it home.
-      pose(attackerRoom, -17, 0, 51, [-17, 1.28, 52]);
+      pose(attackerRoom, CX, 0, towardCentre(ZB, 1), RELIC_B);
       await sleep(80);
       attackerRoom.send('grab', { objectId: 'relicB', hand: 'right' });
       await waitFor(() => st(a).objects.get('relicB')?.status === 'carried', 2000, 'carried');
-      pose(attackerRoom, -17, 0, 0);
+      pose(attackerRoom, CX, 0, 0);
       await sleep(80);
-      pose(attackerRoom, -17, 0, -51.5);
+      pose(attackerRoom, CX, 0, towardCentre(ZA, 0.5));
       await waitFor(() => st(a).scoreA === round, 2000, `score ${round}`);
       // The case reseals and the relic is home again.
       expect(st(a).objects.get('relicB').status).toBe('home');
@@ -174,21 +183,21 @@ describe('Capture the Relic, scripted', () => {
     await waitFor(() => st(a).phase === 'playing', 3000, 'playing');
     const atk = st(a).players.get('k1').team === 'A' ? a : b;
     const def = atk === a ? b : a;
-    pose(atk, -17, 0, 50.8, [-17, 1.45, 52]);
+    pose(atk, CX, 0, towardCentre(ZB, 1.2), CASE_B);
     await sleep(80);
     atk.send('hitBreakable', { id: 'caseB', hand: 'right', speed: 4 });
     await sleep(350);
     atk.send('hitBreakable', { id: 'caseB', hand: 'right', speed: 4 });
     await waitFor(() => st(a).breakables.get('caseB')?.stage === 2, 2000, 'shattered');
-    pose(atk, -17, 0, 51, [-17, 1.28, 52]);
+    pose(atk, CX, 0, towardCentre(ZB, 1), RELIC_B);
     await sleep(80);
     atk.send('grab', { objectId: 'relicB', hand: 'right' });
     await waitFor(() => st(a).objects.get('relicB')?.status === 'carried', 2000, 'carried');
 
     // Carrier runs into the Dinosaur Hall; the defender catches up and shoves five times.
     // 1.5 m apart: inside shove reach, outside the defender's return-touch radius.
-    pose(atk, -17, 0, 10);
-    pose(def, -17, 0, 11.5);
+    pose(atk, CX, 0, 10);
+    pose(def, CX, 0, 11.5);
     await sleep(100);
     const atkId = st(a).players.get('k1').team === 'A' ? 'k1' : 'k2';
     for (let i = 0; i < 6 && st(a).players.get(atkId).status !== 'ko'; i++) {
@@ -198,7 +207,7 @@ describe('Capture the Relic, scripted', () => {
     await waitFor(() => st(a).players.get(atkId).status === 'ko', 2000, 'ko');
     const relic = st(a).objects.get('relicB');
     expect(relic.status).toBe('dropped');
-    expect(relic.x).toBeCloseTo(-17, 1);
+    expect(relic.x).toBeCloseTo(CX, 1);
     expect(relic.z).toBeCloseTo(10, 1);
     await Promise.all([a.leave(), b.leave()]);
   });
@@ -223,7 +232,7 @@ describe('Artifact Hunt, scripted', () => {
     await sleep(80);
     a.send('grab', { objectId: t.id, hand: 'right' });
     await waitFor(() => st(a).objects.get(t.id)?.status === 'carried', 2000, 'carried');
-    pose(a, 19.5, 0, 2); // beside the desk, inside the 4.5 m delivery ring
+    pose(a, DESK[0] + 3.5, 0, 1); // beside the desk, inside the 4.5 m delivery ring
     await waitFor(() => st(a).objects.get(t.id) === undefined, 2000, 'secured');
     const value = { common: 1, rare: 3, legendary: 5 }[t.variant as 'common'];
     expect(st(a).players.get('h1').score).toBe(value);
@@ -240,5 +249,29 @@ describe('Artifact Hunt, scripted', () => {
     st(a).objects.forEach((o: any) => { if (o.kind === 'artifact') left++; });
     expect(left).toBe(0);
     await Promise.all([a.leave(), b.leave()]);
+  });
+});
+
+describe('Elevators', () => {
+  it('ride from the Great Hall floor to the balcony only when standing in the cab', async () => {
+    const e = museum.elevators.find((x) => x.id === 'elevGreatHallN')!;
+    const a = await join('elevator-party-111', 'e1');
+    const teleports: { pos: number[]; fade?: boolean }[] = [];
+    a.onMessage('teleport', (m: { pos: number[]; fade?: boolean }) => teleports.push(m));
+    // Outside the cab: ignored.
+    pose(a, e.x + 5, 0, e.z);
+    await sleep(80);
+    a.send('elevator', { id: e.id, floor: 2 });
+    await sleep(200);
+    expect(teleports.filter((t) => t.fade)).toHaveLength(0);
+    // Inside the cab on floor 1: up to floor 2 with a fade.
+    pose(a, e.x + 0.5, 0, e.z);
+    await sleep(80);
+    a.send('elevator', { id: e.id, floor: 2 });
+    await waitFor(() => teleports.some((t) => t.fade), 2000, 'elevator teleport');
+    const t = teleports.find((x) => x.fade)!;
+    expect(t.pos[1]).toBe(8);
+    expect(t.pos[0]).toBeCloseTo(e.x + 0.5, 3);
+    await a.leave();
   });
 });

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { MuseumMap, Room } from '@museum/shared';
+import { BUILDING, type MuseumMap, type Room } from '@museum/shared';
 import { type RoomLight, Sink } from '../sink';
 import { buildPlatforms, buildStairs } from './structure';
 import { buildBlock } from './exhibits';
@@ -61,18 +61,18 @@ export function buildExterior(r: Room, map: MuseumMap): { group: THREE.Group; co
   const STONE = 0xeee4d0;
 
   // ── Ground: plaza, sidewalks, avenue, far side.
-  sink.box('stone', 39, -2.7, -60, 62, -2.4, 60, { tint: 0xc9c1b3, collide: true }, 4);
+  sink.box('stone', 39, -2.7, -80, 62, -2.4, 80, { tint: 0xc9c1b3, collide: true }, 4);
   far('asphalt', 62, -2.75, -200, 76, -2.6, 200, { tint: 0x9a9a9a });
   far('stone', 76, -2.7, -200, 82, -2.45, 200, { tint: 0xb8b2a8 });
-  far('stone', 56, -2.7, -200, 62, -2.45, -60, { tint: 0xb8b2a8 });
-  far('stone', 56, -2.7, 60, 62, -2.45, 200, { tint: 0xb8b2a8 });
+  far('stone', 56, -2.7, -200, 62, -2.45, -80, { tint: 0xb8b2a8 });
+  far('stone', 56, -2.7, 80, 62, -2.45, 200, { tint: 0xb8b2a8 });
   far('plain', 61.8, -2.75, -200, 62.1, -2.4, 200, { tint: 0x8d8a84 });
   for (let z = -200; z < 200; z += 6) far('plain', 68.9, -2.6, z, 69.1, -2.59, z + 3, { tint: 0xd8b23a, gain: 1.4 });
   for (let z = -6; z <= 6; z += 1.2) far('plain', 62.5, -2.6, z, 75.5, -2.59, z + 0.6, { tint: 0xeeeeee, gain: 1.2 });
   // Park lawns behind the glass courts.
-  far('foliage', -80, -0.3, -140, 39, -0.05, -60.5, { tint: 0x7fa060 });
-  far('foliage', -80, -0.3, 60.5, 39, -0.05, 140, { tint: 0x7fa060 });
-  far('foliage', -120, -0.3, -140, -45.5, -0.05, 140, { tint: 0x7fa060 });
+  far('foliage', -100, -0.3, -160, 39, -0.05, BUILDING.z0 - 0.5, { tint: 0x7fa060 });
+  far('foliage', -100, -0.3, BUILDING.z1 + 0.5, 39, -0.05, 160, { tint: 0x7fa060 });
+  far('foliage', -160, -0.3, -160, BUILDING.x0 - 0.5, -0.05, 160, { tint: 0x7fa060 });
 
   // ── Terrace, front steps, cheeks, fountains, cart.
   buildPlatforms(sink, map, r.id, 'stone', 0xe3dccf, 'stone', 0xe3dccf);
@@ -83,9 +83,9 @@ export function buildExterior(r: Room, map: MuseumMap): { group: THREE.Group; co
   const doors = map.portals.filter((p) => p.a === 'exterior' || p.b === 'exterior');
   const skin = (z0: number, z1: number, y0: number, y1: number, x1 = 39.5, tint = STONE) => sink.box('stone', 39, y0, z0, x1, y1, z1, { tint });
   // Rusticated base under the wings (visible from the plaza).
-  skin(-60, -18, -2.4, 0, 39.9, 0xd8cfbe); skin(18, 60, -2.4, 0, 39.9, 0xd8cfbe);
+  skin(BUILDING.z0, -18, -2.4, 0, 39.9, 0xd8cfbe); skin(18, BUILDING.z1, -2.4, 0, 39.9, 0xd8cfbe);
   // Wings.
-  for (const [z0, z1] of [[-60, -15], [15, 60]] as const) {
+  for (const [z0, z1] of [[BUILDING.z0, -15], [15, BUILDING.z1]] as const) {
     skin(z0, z1, 0, 20);
     sink.add('stone', moulding(PROFILES.cornice, z1 - z0, 1.6), faceAt(39.5, 18.4, z1), { tint: 0xf3ebdb });
     sink.add('stone', moulding(PROFILES.stringCourse, z1 - z0, 1.5), faceAt(39.5, 6, z1), { tint: 0xe9dfcc });
@@ -149,8 +149,9 @@ export function buildExterior(r: Room, map: MuseumMap): { group: THREE.Group; co
   const tr = (x: number, z: number, h: number) => { const t = tree(h); sink.add('wood', t.trunk, M(x, -2.4, z), { tint: 0x5a4030 }); sink.add('foliage', t.canopy, M(x, -2.4, z), { tint: 0xa8c27e }); };
   for (let z = -56; z <= 56; z += 8) if (Math.abs(z) > 20) tr(59.5, z, 8 + rand() * 2);
   for (let z = -190; z <= 190; z += 10) tr(79, z, 9 + rand() * 2);
-  for (let z = -140; z <= 140; z += 9) for (const zz of [-1, 1]) if (Math.abs(z) > 70 || zz) tr(-48 - rand() * 60, z + rand() * 4, 9 + rand() * 6);
-  for (let x = -40; x < 36; x += 9) { tr(x + rand() * 3, -68 - rand() * 12, 10 + rand() * 5); tr(x + rand() * 3, 68 + rand() * 12, 10 + rand() * 5); }
+  // Central Park: trees beyond the park-side wall and outside both glass courts.
+  for (let z = -150; z <= 150; z += 9) for (let k = 0; k < 2; k++) tr(BUILDING.x0 - 6 - rand() * 50, z + rand() * 4, 9 + rand() * 6);
+  for (let x = BUILDING.x0 + 4; x < 36; x += 9) { tr(x + rand() * 3, BUILDING.z0 - 6 - rand() * 14, 10 + rand() * 5); tr(x + rand() * 3, BUILDING.z1 + 6 + rand() * 14, 10 + rand() * 5); }
   for (const z of [-34, -20, 20, 34]) {
     sink.box('plain', 58.9, -2.4, z - 0.07, 59.05, 2.4, z + 0.07, { tint: 0x2c2f2c });
     const globe = new THREE.SphereGeometry(0.28, 8, 6);

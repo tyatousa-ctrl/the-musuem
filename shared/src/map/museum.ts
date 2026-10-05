@@ -1,51 +1,73 @@
 import type {
-  Block, Door, MuseumMap, Platform, Portal, Rail, Room, Slot, Spawn, Stair, Zone,
+  Block, Door, Elevator, MuseumMap, Platform, Portal, Rail, Room, Slot, Spawn, Stair, Zone,
 } from './types.js';
 import { groundHeightAt } from './ground.js';
 
 /*
- * The museum, as data. +x east, +z south, north is −z. Ground floor y = 0,
- * service level y = −6, balcony/catwalks y = 7. See docs/DECISIONS.md for the
- * dimensions that differ from the brief.
+ * The museum, as data. +x east (Fifth Avenue), +z south, north is −z.
+ * Ground floor y = 0, second floor y = 8, service level y = −6.
  *
- *   x: −45 … −27 Art Galleries | −27 … −7 Dinosaur Hall | −7 … 39 east wings | 39+ exterior
- *   z: −60 … −37 North Court | −37 … 37 main block | 37 … 60 South Court
+ * The plan follows the Met's: the Great Hall runs along the facade with
+ * Egyptian Art to the north and Greek & Roman to the south; behind it the
+ * grand staircase, flanked by Arms & Armor and the Arts of Africa, Oceania and
+ * the Americas; the Dinosaur Hall is the long central spine; the American Wing,
+ * a sculpture court and Modern Art line the park side; European Paintings fill
+ * the second floor. The Temple Court (north) and Glass Court (south) are the bases.
+ *
+ *   x: −60 … −22 west band | −22 … −2 Dinosaur Hall | −2 … 12 connector | 12 … 39 front band | 39+ avenue
+ *   z: −76 … −50 North Court | −50 … 50 main block | 50 … 76 South Court
  */
 
 const PI = Math.PI;
+const F2 = 8; // second-floor level
 
 // ─── Rooms ────────────────────────────────────────────────────────────────────
-const galleryColors = [0x6e1f2a, 0x1f4a3a, 0x24365e, 0xc9b99a, 0x5a2a4e, 0x2f5552, 0x7a3b1e];
-const galleryZ = [-37, -27, -17, -7, 7, 17, 27, 37];
+const paintColors = [0x6e1f2a, 0x1f4a3a, 0x24365e, 0x7a3b1e, 0x5a2a4e, 0x2f5552, 0x6a4a1e, 0x3a2a5e, 0x6e1f2a, 0x1f4a3a];
+const ROWS = [-50, -30, -10, 10, 30, 50];
 
 const rooms: Room[] = [
-  { id: 'exterior', name: 'The Avenue', style: 'exterior', x0: 39, x1: 110, z0: -60, z1: 60, floorY: -2.4, ceilY: 40, open: true, acoustic: 'outdoor' },
-  { id: 'lobby', name: 'Grand Lobby', style: 'lobby', x0: -7, x1: 39, z0: -11, z1: 11, floorY: 0, ceilY: 20, acoustic: 'hall' },
-  { id: 'egyptS', name: 'Egypt — Offering Hall', style: 'egypt', x0: -7, x1: 39, z0: -16, z1: -11, floorY: 0, ceilY: 4.5, acoustic: 'tomb' },
-  { id: 'egyptM', name: 'Egypt — Mastaba Hall', style: 'egypt', x0: -7, x1: 39, z0: -26, z1: -16, floorY: 0, ceilY: 6, acoustic: 'tomb' },
-  { id: 'egyptN2', name: 'Egypt — Statue Corridor', style: 'egypt', x0: -7, x1: 39, z0: -31.5, z1: -26, floorY: 0, ceilY: 4, acoustic: 'tomb' },
-  { id: 'egyptN1', name: 'Egypt — Tomb Corridor', style: 'egypt', x0: -7, x1: 39, z0: -37, z1: -31.5, floorY: 0, ceilY: 4, acoustic: 'tomb' },
-  { id: 'cultures', name: 'World Cultures', style: 'cultures', x0: -7, x1: 39, z0: 11, z1: 37, floorY: 0, ceilY: 12, acoustic: 'gallery' },
-  { id: 'dinoHall', name: 'Dinosaur Hall', style: 'dino', x0: -27, x1: -7, z0: -37, z1: 37, floorY: 0, ceilY: 18, acoustic: 'hall' },
-  ...galleryZ.slice(0, -1).map((z0, i): Room => ({
-    id: `gallery${i + 1}`,
-    name: i === 3 ? 'Sculpture Gallery' : `Gallery ${i + 1}`,
-    style: i === 3 ? 'sculpture' : 'gallery',
-    x0: -45, x1: -27, z0, z1: galleryZ[i + 1],
-    floorY: 0, ceilY: i === 3 ? 12 : 9,
-    wallColor: galleryColors[i],
+  { id: 'exterior', name: 'Fifth Avenue', style: 'exterior', x0: 39, x1: 130, z0: -80, z1: 80, floorY: -2.4, ceilY: 40, open: true, acoustic: 'outdoor' },
+  // Front band.
+  { id: 'greatHall', name: 'The Great Hall', style: 'lobby', x0: 12, x1: 39, z0: -28, z1: 28, floorY: 0, ceilY: 22, acoustic: 'hall' },
+  { id: 'egyptS', name: 'Egyptian Art — Offering Hall', style: 'egypt', x0: 12, x1: 39, z0: -34, z1: -28, floorY: 0, ceilY: 4.5, acoustic: 'tomb' },
+  { id: 'egyptM', name: 'Egyptian Art — Mastaba Hall', style: 'egypt', x0: 12, x1: 39, z0: -43, z1: -34, floorY: 0, ceilY: 6, acoustic: 'tomb' },
+  { id: 'egyptN', name: 'Egyptian Art — Statue Corridor', style: 'egypt', x0: 12, x1: 39, z0: -50, z1: -43, floorY: 0, ceilY: 4.5, acoustic: 'tomb' },
+  { id: 'greek', name: 'Greek and Roman Art', style: 'greek', x0: 12, x1: 39, z0: 28, z1: 50, floorY: 0, ceilY: 12, acoustic: 'gallery' },
+  // Connector band behind the Great Hall.
+  { id: 'armsArmor', name: 'Arms and Armor', style: 'arms', x0: -2, x1: 12, z0: -50, z1: -12, floorY: 0, ceilY: 7.5, acoustic: 'gallery' },
+  { id: 'grandStair', name: 'Grand Staircase', style: 'stairhall', x0: -2, x1: 12, z0: -12, z1: 12, floorY: 0, ceilY: 18, acoustic: 'hall' },
+  { id: 'cultures', name: 'Arts of Africa, Oceania, and the Americas', style: 'cultures', x0: -2, x1: 12, z0: 12, z1: 50, floorY: 0, ceilY: 7.5, acoustic: 'gallery' },
+  // The spine.
+  { id: 'dinoHall', name: 'Dinosaur Hall', style: 'dino', x0: -22, x1: -2, z0: -50, z1: 50, floorY: 0, ceilY: 18, acoustic: 'hall' },
+  // Park-side band.
+  { id: 'american', name: 'The American Wing', style: 'american', x0: -60, x1: -22, z0: -50, z1: -12, floorY: 0, ceilY: 7.5, acoustic: 'gallery' },
+  { id: 'sculptureCourt', name: 'European Sculpture Court', style: 'sculpture', x0: -60, x1: -22, z0: -12, z1: 12, floorY: 0, ceilY: 7.5, acoustic: 'gallery' },
+  { id: 'modern', name: 'Modern and Contemporary Art', style: 'modern', x0: -60, x1: -22, z0: 12, z1: 50, floorY: 0, ceilY: 7.5, acoustic: 'gallery' },
+  // Second floor.
+  { id: 'asianArt', name: 'Asian Art', style: 'gallery', x0: -2, x1: 12, z0: -50, z1: -12, floorY: F2, ceilY: 15, wallColor: 0x2f5552, acoustic: 'gallery' },
+  { id: 'instruments', name: 'Musical Instruments', style: 'gallery', x0: -2, x1: 12, z0: 12, z1: 50, floorY: F2, ceilY: 15, wallColor: 0x5a2a4e, acoustic: 'gallery' },
+  ...[0, 1, 2, 3, 4].flatMap((i): Room[] => (['W', 'E'] as const).map((col) => ({
+    id: `paint${col}${i + 1}`,
+    name: `European Paintings ${i * 2 + (col === 'W' ? 1 : 2)}`,
+    style: 'gallery',
+    x0: col === 'W' ? -60 : -41, x1: col === 'W' ? -41 : -22,
+    z0: ROWS[i], z1: ROWS[i + 1],
+    floorY: F2, ceilY: 15,
+    wallColor: paintColors[i * 2 + (col === 'W' ? 0 : 1)],
     acoustic: 'gallery',
-  })),
-  { id: 'northCourt', name: 'Temple Court', style: 'courtNorth', x0: -45, x1: 39, z0: -60, z1: -37, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 10, x1: 14, z0: -57, z1: -45 }] },
-  { id: 'southCourt', name: 'Glass Court', style: 'courtSouth', x0: -45, x1: 39, z0: 37, z1: 60, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 10, x1: 14, z0: 45, z1: 57 }] },
-  { id: 'stairN', name: 'North Service Stair', style: 'stairwell', x0: 10, x1: 14, z0: -57, z1: -45, floorY: -6, ceilY: 0, noCeiling: true, acoustic: 'service' },
-  { id: 'stairS', name: 'South Service Stair', style: 'stairwell', x0: 10, x1: 14, z0: 45, z1: 57, floorY: -6, ceilY: 0, noCeiling: true, acoustic: 'service' },
-  { id: 'service', name: 'Service Corridor', style: 'service', x0: 10, x1: 14, z0: -45, z1: 45, floorY: -6, ceilY: -2.6, acoustic: 'service' },
-  { id: 'svcCrossN', name: 'Freight Corridor North', style: 'service', x0: 14, x1: 28, z0: -32, z1: -28, floorY: -6, ceilY: -2.6, acoustic: 'service' },
-  { id: 'svcCrossS', name: 'Freight Corridor South', style: 'service', x0: 14, x1: 28, z0: 28, z1: 32, floorY: -6, ceilY: -2.6, acoustic: 'service' },
-  { id: 'svcEast', name: 'Loading Corridor', style: 'service', x0: 28, x1: 32, z0: -32, z1: 32, floorY: -6, ceilY: -2.6, acoustic: 'service' },
-  { id: 'security', name: 'Security Office', style: 'office', x0: 14, x1: 24, z0: -5, z1: 5, floorY: -6, ceilY: -2.6, acoustic: 'service' },
-  { id: 'lab', name: 'Conservation Lab', style: 'office', x0: 24, x1: 28, z0: -5, z1: 5, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  }))),
+  // Bases.
+  { id: 'northCourt', name: 'Temple Court', style: 'courtNorth', x0: -60, x1: 39, z0: -76, z1: -50, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 22, x1: 26, z0: -73, z1: -61 }] },
+  { id: 'southCourt', name: 'Glass Court', style: 'courtSouth', x0: -60, x1: 39, z0: 50, z1: 76, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 22, x1: 26, z0: 61, z1: 73 }] },
+  // Service level.
+  { id: 'stairN', name: 'North Service Stair', style: 'stairwell', x0: 22, x1: 26, z0: -73, z1: -61, floorY: -6, ceilY: 0, noCeiling: true, acoustic: 'service' },
+  { id: 'stairS', name: 'South Service Stair', style: 'stairwell', x0: 22, x1: 26, z0: 61, z1: 73, floorY: -6, ceilY: 0, noCeiling: true, acoustic: 'service' },
+  { id: 'service', name: 'Service Corridor', style: 'service', x0: 22, x1: 26, z0: -61, z1: 61, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  { id: 'svcCrossN', name: 'Freight Corridor North', style: 'service', x0: 26, x1: 34, z0: -42, z1: -38, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  { id: 'svcCrossS', name: 'Freight Corridor South', style: 'service', x0: 26, x1: 34, z0: 38, z1: 42, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  { id: 'svcEast', name: 'Loading Corridor', style: 'service', x0: 34, x1: 38, z0: -42, z1: 42, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  { id: 'security', name: 'Security Office', style: 'office', x0: 26, x1: 31, z0: -5, z1: 5, floorY: -6, ceilY: -2.6, acoustic: 'service' },
+  { id: 'lab', name: 'Conservation Lab', style: 'office', x0: 31, x1: 34, z0: -5, z1: 5, floorY: -6, ceilY: -2.6, acoustic: 'service' },
 ];
 
 // ─── Portals ──────────────────────────────────────────────────────────────────
@@ -54,92 +76,121 @@ const P = (
   x: number, y: number, z: number, width: number, height: number,
 ): Portal => ({ id, a, b, kind, axis, x, y, z, width, height });
 
+/** Openings that share a wall must not overlap along it (they may differ in height only if they don't). */
 const portals: Portal[] = [
   // Facade: three arched bays onto the steps.
-  P('facadeN', 'exterior', 'lobby', 'arch', 'z', 39, 0, -8, 4, 6.5),
-  P('facadeC', 'exterior', 'lobby', 'arch', 'z', 39, 0, 0, 4, 6.5),
-  P('facadeS', 'exterior', 'lobby', 'arch', 'z', 39, 0, 8, 4, 6.5),
-  // Lobby.
-  P('lobby-dino', 'lobby', 'dinoHall', 'grand', 'z', -7, 0, 0, 8, 12),
-  P('lobby-egypt', 'lobby', 'egyptS', 'door', 'x', 16, 0, -11, 4, 4),
-  P('lobby-cultures', 'lobby', 'cultures', 'door', 'x', 16, 0, 11, 4, 5),
-  // Egypt.
-  P('egyptS-M-w', 'egyptS', 'egyptM', 'door', 'x', 3.5, 0, -16, 3, 3.5),
-  P('egyptS-M-e', 'egyptS', 'egyptM', 'door', 'x', 21.5, 0, -16, 3, 3.5),
-  P('egyptS-M-crawl', 'egyptS', 'egyptM', 'crawl', 'x', 31, 0, -16, 1.2, 1.2),
-  P('egyptM-N2-w', 'egyptM', 'egyptN2', 'door', 'x', 3.5, 0, -26, 3, 3.5),
-  P('egyptM-N2-e', 'egyptM', 'egyptN2', 'door', 'x', 34.5, 0, -26, 3, 3.5),
-  P('egyptM-N2-secret', 'egyptM', 'egyptN2', 'secret', 'x', 16, 0, -26, 1.6, 2.6),
-  P('egyptN2-N1-w', 'egyptN2', 'egyptN1', 'opening', 'x', -3, 0, -31.5, 6, 4),
-  P('egyptN2-N1-e', 'egyptN2', 'egyptN1', 'opening', 'x', 35, 0, -31.5, 6, 4),
-  P('egypt-north', 'egyptN1', 'northCourt', 'door', 'x', 4, 0, -37, 3, 4),
-  // Cultures.
-  P('cultures-south', 'cultures', 'southCourt', 'door', 'x', 4, 0, 37, 4, 5),
-  // Dinosaur Hall.
-  P('dino-north', 'dinoHall', 'northCourt', 'grand', 'x', -17, 0, -37, 10, 12),
-  P('dino-south', 'dinoHall', 'southCourt', 'grand', 'x', -17, 0, 37, 10, 12),
-  // Gallery enfilade, zig-zagging (mirror-symmetric north/south for fairness).
-  P('gal-north', 'northCourt', 'gallery1', 'door', 'x', -40, 0, -37, 3, 4.5),
-  P('gal-1-2', 'gallery1', 'gallery2', 'door', 'x', -32, 0, -27, 3, 4.5),
-  P('gal-2-3', 'gallery2', 'gallery3', 'door', 'x', -40, 0, -17, 3, 4.5),
-  P('gal-3-4', 'gallery3', 'gallery4', 'door', 'x', -32, 0, -7, 3, 4.5),
-  P('gal-4-5', 'gallery4', 'gallery5', 'door', 'x', -32, 0, 7, 3, 4.5),
-  P('gal-5-6', 'gallery5', 'gallery6', 'door', 'x', -40, 0, 17, 3, 4.5),
-  P('gal-6-7', 'gallery6', 'gallery7', 'door', 'x', -32, 0, 27, 3, 4.5),
-  P('gal-south', 'gallery7', 'southCourt', 'door', 'x', -40, 0, 37, 3, 4.5),
-  // Cross-doors from the galleries into the Dinosaur Hall.
-  P('gal2-dino', 'gallery2', 'dinoHall', 'door', 'z', -27, 0, -22, 3, 4.5),
-  P('gal4-dino', 'gallery4', 'dinoHall', 'arch', 'z', -27, 0, 0, 4, 5.5),
-  P('gal6-dino', 'gallery6', 'dinoHall', 'door', 'z', -27, 0, 22, 3, 4.5),
+  P('facadeN', 'exterior', 'greatHall', 'arch', 'z', 39, 0, -8, 4, 6.5),
+  P('facadeC', 'exterior', 'greatHall', 'arch', 'z', 39, 0, 0, 4, 6.5),
+  P('facadeS', 'exterior', 'greatHall', 'arch', 'z', 39, 0, 8, 4, 6.5),
+  // Great Hall: wings to either side, the grand staircase behind, galleries and balconies.
+  P('gh-egyptW', 'greatHall', 'egyptS', 'door', 'x', 18, 0, -28, 4, 4),
+  P('gh-egyptE', 'greatHall', 'egyptS', 'door', 'x', 33, 0, -28, 4, 4),
+  P('gh-greekW', 'greatHall', 'greek', 'arch', 'x', 18, 0, 28, 4, 6),
+  P('gh-greekE', 'greatHall', 'greek', 'arch', 'x', 33, 0, 28, 4, 6),
+  P('gh-stair', 'greatHall', 'grandStair', 'grand', 'z', 12, 0, 0, 8, 11),
+  P('gh-stairN', 'greatHall', 'grandStair', 'door', 'z', 12, 0, -7, 3, 4.5),
+  P('gh-stairS', 'greatHall', 'grandStair', 'door', 'z', 12, 0, 7, 3, 4.5),
+  P('gh-stairNUp', 'greatHall', 'grandStair', 'door', 'z', 12, F2, -10.5, 2.5, 3.5),
+  P('gh-stairSUp', 'greatHall', 'grandStair', 'door', 'z', 12, F2, 10.5, 2.5, 3.5),
+  P('gh-arms', 'greatHall', 'armsArmor', 'door', 'z', 12, 0, -20, 4, 5),
+  P('gh-cultures', 'greatHall', 'cultures', 'door', 'z', 12, 0, 20, 4, 5),
+  P('gh-asian', 'greatHall', 'asianArt', 'door', 'z', 12, F2, -24, 3, 3.5),
+  P('gh-instruments', 'greatHall', 'instruments', 'door', 'z', 12, F2, 24, 3, 3.5),
+  // Grand staircase: side passages to the spine at ground level, the landing above.
+  P('stair-dinoN', 'grandStair', 'dinoHall', 'door', 'z', -2, 0, -8, 4, 5),
+  P('stair-dinoS', 'grandStair', 'dinoHall', 'door', 'z', -2, 0, 8, 4, 5),
+  P('stair-dinoUp', 'grandStair', 'dinoHall', 'door', 'z', -2, F2, 0, 4, 4),
+  P('stair-arms', 'grandStair', 'armsArmor', 'door', 'x', 8, 0, -12, 4, 5),
+  P('stair-cultures', 'grandStair', 'cultures', 'door', 'x', 8, 0, 12, 4, 5),
+  P('stair-asian', 'grandStair', 'asianArt', 'door', 'x', 3, F2, -12, 3, 3.5),
+  P('stair-instruments', 'grandStair', 'instruments', 'door', 'x', 3, F2, 12, 3, 3.5),
+  // Dinosaur Hall: the fast lane between the courts, with doors on both sides at both levels.
+  P('dino-north', 'dinoHall', 'northCourt', 'grand', 'x', -12, 0, -50, 10, 12),
+  P('dino-south', 'dinoHall', 'southCourt', 'grand', 'x', -12, 0, 50, 10, 12),
+  P('dino-arms', 'dinoHall', 'armsArmor', 'door', 'z', -2, 0, -30, 4, 5),
+  P('dino-cultures', 'dinoHall', 'cultures', 'door', 'z', -2, 0, 30, 4, 5),
+  P('dino-asian', 'dinoHall', 'asianArt', 'door', 'z', -2, F2, -40, 3, 3.5),
+  P('dino-instruments', 'dinoHall', 'instruments', 'door', 'z', -2, F2, 40, 3, 3.5),
+  P('dino-american', 'dinoHall', 'american', 'door', 'z', -22, 0, -30, 4, 5),
+  P('dino-sculpture', 'dinoHall', 'sculptureCourt', 'arch', 'z', -22, 0, 0, 8, 6.5),
+  P('dino-modern', 'dinoHall', 'modern', 'door', 'z', -22, 0, 30, 4, 5),
+  P('dino-paintE1', 'dinoHall', 'paintE1', 'door', 'z', -22, F2, -40, 3, 3.5),
+  P('dino-paintE3', 'dinoHall', 'paintE3', 'door', 'z', -22, F2, 7, 3, 3.5),
+  P('dino-paintE5', 'dinoHall', 'paintE5', 'door', 'z', -22, F2, 40, 3, 3.5),
+  // Park side, ground floor.
+  P('american-north', 'american', 'northCourt', 'door', 'x', -41, 0, -50, 4, 5),
+  P('american-sculpture', 'american', 'sculptureCourt', 'door', 'x', -41, 0, -12, 6, 5),
+  P('sculpture-modern', 'sculptureCourt', 'modern', 'door', 'x', -41, 0, 12, 6, 5),
+  P('modern-south', 'modern', 'southCourt', 'door', 'x', -41, 0, 50, 4, 5),
+  // Egyptian Art.
+  P('egyptS-M-w', 'egyptS', 'egyptM', 'door', 'x', 15, 0, -34, 3, 3.5),
+  P('egyptS-M-e', 'egyptS', 'egyptM', 'door', 'x', 31, 0, -34, 3, 3.5),
+  P('egyptS-M-crawl', 'egyptS', 'egyptM', 'crawl', 'x', 37, 0, -34, 1.2, 1.2),
+  P('egyptM-N-w', 'egyptM', 'egyptN', 'door', 'x', 14.5, 0, -43, 3, 3.5),
+  P('egyptM-N-secret', 'egyptM', 'egyptN', 'secret', 'x', 29, 0, -43, 1.6, 2.6),
+  P('egyptM-N-e', 'egyptM', 'egyptN', 'door', 'x', 36, 0, -43, 3, 3.5),
+  P('egypt-northW', 'egyptN', 'northCourt', 'door', 'x', 18, 0, -50, 3.5, 4),
+  P('egypt-northE', 'egyptN', 'northCourt', 'door', 'x', 33, 0, -50, 3.5, 4),
+  // Greek and Roman.
+  P('greek-southW', 'greek', 'southCourt', 'door', 'x', 18, 0, 50, 4, 5),
+  P('greek-southE', 'greek', 'southCourt', 'door', 'x', 33, 0, 50, 4, 5),
+  // European Paintings: a 2 × 5 grid with doors between every neighbour.
+  ...[0, 1, 2, 3].flatMap((i) => [
+    P(`paintW${i + 1}-${i + 2}`, `paintW${i + 1}`, `paintW${i + 2}`, 'door', 'x', -50, F2, ROWS[i + 1], 3, 3.5),
+    P(`paintE${i + 1}-${i + 2}`, `paintE${i + 1}`, `paintE${i + 2}`, 'door', 'x', -31, F2, ROWS[i + 1], 3, 3.5),
+  ]),
+  ...[0, 1, 2, 3, 4].map((i) => P(`paintWE${i + 1}`, `paintW${i + 1}`, `paintE${i + 1}`, 'door', 'z', -41, F2, ROWS[i] + 10, 3, 3.5)),
+  P('north-paint', 'northCourt', 'paintW1', 'door', 'x', -50, F2, -50, 3, 3.5),
+  P('south-paint', 'southCourt', 'paintW5', 'door', 'x', -50, F2, 50, 3, 3.5),
   // Service level.
-  P('north-stair', 'northCourt', 'stairN', 'opening', 'x', 12, 0, -57, 4, 3),
-  P('stairN-service', 'stairN', 'service', 'door', 'x', 12, -6, -45, 4, 3),
-  P('south-stair', 'southCourt', 'stairS', 'opening', 'x', 12, 0, 57, 4, 3),
-  P('stairS-service', 'stairS', 'service', 'door', 'x', 12, -6, 45, 4, 3),
-  P('svc-crossN', 'service', 'svcCrossN', 'door', 'z', 14, -6, -30, 4, 3),
-  P('crossN-east', 'svcCrossN', 'svcEast', 'door', 'z', 28, -6, -30, 4, 3),
-  P('svc-crossS', 'service', 'svcCrossS', 'door', 'z', 14, -6, 30, 4, 3),
-  P('crossS-east', 'svcCrossS', 'svcEast', 'door', 'z', 28, -6, 30, 4, 3),
-  P('svc-security', 'service', 'security', 'door', 'z', 14, -6, 0, 2, 2.6),
-  P('security-lab', 'security', 'lab', 'door', 'z', 24, -6, 0, 2, 2.6),
-  P('lab-east', 'lab', 'svcEast', 'door', 'z', 28, -6, 0, 2, 2.6),
+  P('north-stair', 'northCourt', 'stairN', 'opening', 'x', 24, 0, -73, 4, 3),
+  P('stairN-service', 'stairN', 'service', 'door', 'x', 24, -6, -61, 4, 3),
+  P('south-stair', 'southCourt', 'stairS', 'opening', 'x', 24, 0, 73, 4, 3),
+  P('stairS-service', 'stairS', 'service', 'door', 'x', 24, -6, 61, 4, 3),
+  P('svc-crossN', 'service', 'svcCrossN', 'door', 'z', 26, -6, -40, 4, 3),
+  P('crossN-east', 'svcCrossN', 'svcEast', 'door', 'z', 34, -6, -40, 4, 3),
+  P('svc-crossS', 'service', 'svcCrossS', 'door', 'z', 26, -6, 40, 4, 3),
+  P('crossS-east', 'svcCrossS', 'svcEast', 'door', 'z', 34, -6, 40, 4, 3),
+  P('svc-security', 'service', 'security', 'door', 'z', 26, -6, 0, 2, 2.6),
+  P('security-lab', 'security', 'lab', 'door', 'z', 31, -6, 0, 2, 2.6),
+  P('lab-east', 'lab', 'svcEast', 'door', 'z', 34, -6, 0, 2, 2.6),
 ];
 
 // ─── Platforms, stairs, rails ─────────────────────────────────────────────────
 const platforms: Platform[] = [
-  // Upper Balcony ringing the lobby.
-  { id: 'balconyN', room: 'lobby', x0: -7, x1: 39, z0: -11, z1: -8, y: 7, style: 'balcony' },
-  { id: 'balconyS', room: 'lobby', x0: -7, x1: 39, z0: 8, z1: 11, y: 7, style: 'balcony' },
-  { id: 'balconyW', room: 'lobby', x0: -7, x1: -4, z0: -8, z1: 8, y: 7, style: 'balcony' },
-  { id: 'balconyE', room: 'lobby', x0: 36, x1: 39, z0: -8, z1: 8, y: 7, style: 'balcony' },
-  { id: 'grandLandingN', room: 'lobby', x0: -4, x1: 0, z0: -8, z1: -5.5, y: 7, style: 'landing' },
-  { id: 'grandLandingS', room: 'lobby', x0: -4, x1: 0, z0: 5.5, z1: 8, y: 7, style: 'landing' },
-  // Dinosaur Hall catwalks.
-  { id: 'catwalkE', room: 'dinoHall', x0: -10, x1: -7, z0: -37, z1: 37, y: 7, style: 'catwalk' },
-  { id: 'catwalkW', room: 'dinoHall', x0: -27, x1: -24, z0: -37, z1: 37, y: 7, style: 'catwalk' },
-  { id: 'catLandEN', room: 'dinoHall', x0: -13, x1: -10, z0: -37, z1: -34, y: 7, style: 'catwalk' },
-  { id: 'catLandES', room: 'dinoHall', x0: -13, x1: -10, z0: 34, z1: 37, y: 7, style: 'catwalk' },
-  { id: 'catLandWN', room: 'dinoHall', x0: -24, x1: -21, z0: -37, z1: -34, y: 7, style: 'catwalk' },
-  { id: 'catLandWS', room: 'dinoHall', x0: -24, x1: -21, z0: 34, z1: 37, y: 7, style: 'catwalk' },
-  // Courts.
-  { id: 'templePodium', room: 'northCourt', x0: 16, x1: 32, z0: -59.5, z1: -49, y: 1.2, solid: true, style: 'podium' },
-  { id: 'mezzanine', room: 'southCourt', x0: 30, x1: 39, z0: 41, z1: 59.5, y: 5, style: 'mezzanine' },
-  { id: 'mezzLanding', room: 'southCourt', x0: 27, x1: 30, z0: 54, z1: 57, y: 5, style: 'landing' },
+  // Great Hall balcony ring.
+  { id: 'balconyN', room: 'greatHall', x0: 12, x1: 39, z0: -28, z1: -25, y: F2, style: 'balcony' },
+  { id: 'balconyS', room: 'greatHall', x0: 12, x1: 39, z0: 25, z1: 28, y: F2, style: 'balcony' },
+  { id: 'balconyW', room: 'greatHall', x0: 12, x1: 15, z0: -25, z1: 25, y: F2, style: 'balcony' },
+  { id: 'balconyE', room: 'greatHall', x0: 36, x1: 39, z0: -25, z1: 25, y: F2, style: 'balcony' },
+  // Grand staircase landing and side galleries.
+  { id: 'stairLanding', room: 'grandStair', x0: -2, x1: 0, z0: -12, z1: 12, y: F2, style: 'landing' },
+  { id: 'stairGalleryN', room: 'grandStair', x0: 0, x1: 12, z0: -12, z1: -8, y: F2, style: 'balcony' },
+  { id: 'stairGalleryS', room: 'grandStair', x0: 0, x1: 12, z0: 8, z1: 12, y: F2, style: 'balcony' },
+  // Dinosaur Hall catwalks and bridges.
+  { id: 'catwalkE', room: 'dinoHall', x0: -5, x1: -2, z0: -50, z1: 50, y: F2, style: 'catwalk' },
+  { id: 'catwalkW', room: 'dinoHall', x0: -22, x1: -19, z0: -50, z1: 50, y: F2, style: 'catwalk' },
+  { id: 'bridgeN', room: 'dinoHall', x0: -19, x1: -5, z0: -26, z1: -23, y: F2, style: 'catwalk' },
+  { id: 'bridgeS', room: 'dinoHall', x0: -19, x1: -5, z0: 23, z1: 26, y: F2, style: 'catwalk' },
+  { id: 'catLandE', room: 'dinoHall', x0: -8, x1: -5, z0: -50, z1: -46, y: F2, style: 'catwalk' },
+  { id: 'catLandW', room: 'dinoHall', x0: -19, x1: -16, z0: 46, z1: 50, y: F2, style: 'catwalk' },
+  // Courts: temple podium, mezzanines leading to the paintings upstairs.
+  { id: 'templePodium', room: 'northCourt', x0: 27, x1: 38.5, z0: -75.5, z1: -64, y: 1.2, solid: true, style: 'podium' },
+  { id: 'mezzN', room: 'northCourt', x0: -60, x1: -30, z0: -54, z1: -50, y: F2, style: 'mezzanine' },
+  { id: 'mezzS', room: 'southCourt', x0: -60, x1: -30, z0: 50, z1: 54, y: F2, style: 'mezzanine' },
   // Exterior terrace in front of the doors.
   { id: 'terrace', room: 'exterior', x0: 39, x1: 42, z0: -18, z1: 18, y: 0, solid: true, style: 'podium' },
 ];
 
 const stairs: Stair[] = [
-  { id: 'grandN', room: 'lobby', x0: 0, x1: 14, z0: -8, z1: -5.5, y0: 0, y1: 7, dir: '-x', style: 'grand' },
-  { id: 'grandS', room: 'lobby', x0: 0, x1: 14, z0: 5.5, z1: 8, y0: 0, y1: 7, dir: '-x', style: 'grand' },
-  { id: 'catEN', room: 'dinoHall', x0: -13, x1: -10, z0: -34, z1: -20, y0: 0, y1: 7, dir: '-z', style: 'metal' },
-  { id: 'catES', room: 'dinoHall', x0: -13, x1: -10, z0: 20, z1: 34, y0: 0, y1: 7, dir: '+z', style: 'metal' },
-  { id: 'catWN', room: 'dinoHall', x0: -24, x1: -21, z0: -34, z1: -20, y0: 0, y1: 7, dir: '-z', style: 'metal' },
-  { id: 'catWS', room: 'dinoHall', x0: -24, x1: -21, z0: 20, z1: 34, y0: 0, y1: 7, dir: '+z', style: 'metal' },
-  { id: 'templeSteps', room: 'northCourt', x0: 20, x1: 28, z0: -49, z1: -46.6, y0: 0, y1: 1.2, dir: '-z', style: 'stone' },
-  { id: 'mezzStair', room: 'southCourt', x0: 27, x1: 30, z0: 44, z1: 54, y0: 0, y1: 5, dir: '+z', style: 'metal' },
-  { id: 'svcStairN', room: 'stairN', x0: 10, x1: 14, z0: -57, z1: -45, y0: -6, y1: 0, dir: '-z', style: 'concrete' },
-  { id: 'svcStairS', room: 'stairS', x0: 10, x1: 14, z0: 45, z1: 57, y0: -6, y1: 0, dir: '+z', style: 'concrete' },
+  { id: 'grandStairs', room: 'grandStair', x0: 0, x1: 12, z0: -4, z1: 4, y0: 0, y1: F2, dir: '-x', style: 'grand' },
+  { id: 'catE', room: 'dinoHall', x0: -8, x1: -5, z0: -46, z1: -32, y0: 0, y1: F2, dir: '-z', style: 'metal' },
+  { id: 'catW', room: 'dinoHall', x0: -19, x1: -16, z0: 32, z1: 46, y0: 0, y1: F2, dir: '+z', style: 'metal' },
+  { id: 'courtStairN', room: 'northCourt', x0: -30, x1: -16, z0: -54, z1: -50.5, y0: 0, y1: F2, dir: '-x', style: 'stone' },
+  { id: 'courtStairS', room: 'southCourt', x0: -30, x1: -16, z0: 50.5, z1: 54, y0: 0, y1: F2, dir: '-x', style: 'stone' },
+  { id: 'templeSteps', room: 'northCourt', x0: 30, x1: 35, z0: -64, z1: -61.6, y0: 0, y1: 1.2, dir: '-z', style: 'stone' },
+  { id: 'svcStairN', room: 'stairN', x0: 22, x1: 26, z0: -73, z1: -61, y0: -6, y1: 0, dir: '-z', style: 'concrete' },
+  { id: 'svcStairS', room: 'stairS', x0: 22, x1: 26, z0: 61, z1: 73, y0: -6, y1: 0, dir: '+z', style: 'concrete' },
   { id: 'frontSteps', room: 'exterior', x0: 42, x1: 50, z0: -16, z1: 16, y0: -2.4, y1: 0, dir: '-x', style: 'stone' },
 ];
 
@@ -163,23 +214,24 @@ function stairRail(s: Stair, side: 'x0' | 'x1' | 'z0' | 'z1', style: Rail['style
 const st = (id: string) => stairs.find((s) => s.id === id)!;
 
 const rails: Rail[] = [
-  // Balcony inner edges.
-  R(0, -8, 36, -8, 7), R(0, 8, 36, 8, 7), R(36, -8, 36, 8, 7), R(-4, -5.5, -4, 5.5, 7),
-  // Grand stair sides and landings.
-  stairRail(st('grandN'), 'z1', 'balustrade'), stairRail(st('grandN'), 'z0', 'balustrade'), R(-4, -5.5, 0, -5.5, 7),
-  stairRail(st('grandS'), 'z0', 'balustrade'), stairRail(st('grandS'), 'z1', 'balustrade'), R(-4, 5.5, 0, 5.5, 7),
-  // Catwalk inner edges and stairs.
-  R(-10, -34, -10, 34, 7, 7, 'metal'), R(-24, -34, -24, 34, 7, 7, 'metal'),
-  ...['catEN', 'catES'].flatMap((id) => [stairRail(st(id), 'x0', 'metal'), stairRail(st(id), 'x1', 'metal')]),
-  ...['catWN', 'catWS'].flatMap((id) => [stairRail(st(id), 'x0', 'metal'), stairRail(st(id), 'x1', 'metal')]),
-  R(-13, -37, -13, -34, 7, 7, 'metal'), R(-13, 34, -13, 37, 7, 7, 'metal'),
-  R(-21, -37, -21, -34, 7, 7, 'metal'), R(-21, 34, -21, 37, 7, 7, 'metal'),
+  // Great Hall balcony (the elevator cabs sit in the north-west and south-west corners).
+  R(15, -25, 36, -25, F2), R(15, 25, 36, 25, F2), R(15, -24.5, 15, 24.5, F2), R(36, -25, 36, 25, F2),
+  // Grand staircase.
+  stairRail(st('grandStairs'), 'z0', 'balustrade'), stairRail(st('grandStairs'), 'z1', 'balustrade'),
+  R(0, -8, 12, -8, F2), R(0, 8, 12, 8, F2), R(0, -8, 0, -4, F2), R(0, 4, 0, 8, F2),
+  // Dinosaur Hall catwalks: inner edges with gaps where the bridges join.
+  R(-5, -46, -5, -26, F2, F2, 'metal'), R(-5, -23, -5, 23, F2, F2, 'metal'), R(-5, 26, -5, 50, F2, F2, 'metal'),
+  R(-19, -50, -19, -26, F2, F2, 'metal'), R(-19, -23, -19, 23, F2, F2, 'metal'), R(-19, 26, -19, 46, F2, F2, 'metal'),
+  R(-19, -26, -5, -26, F2, F2, 'metal'), R(-19, -23, -5, -23, F2, F2, 'metal'),
+  R(-19, 23, -5, 23, F2, F2, 'metal'), R(-19, 26, -5, 26, F2, F2, 'metal'),
+  stairRail(st('catE'), 'x0', 'metal'), stairRail(st('catE'), 'x1', 'metal'), R(-8, -50, -8, -46, F2, F2, 'metal'),
+  stairRail(st('catW'), 'x0', 'metal'), stairRail(st('catW'), 'x1', 'metal'), R(-16, 46, -16, 50, F2, F2, 'metal'),
+  // Court mezzanines and stairs.
+  R(-56.5, -54, -30, -54, F2, F2, 'glass'), stairRail(st('courtStairN'), 'z0', 'glass'),
+  R(-56.5, 54, -30, 54, F2, F2, 'glass'), stairRail(st('courtStairS'), 'z1', 'glass'),
   // Service stair holes in the courts (entry side left open).
-  R(10, -57, 10, -45, 0, 0, 'metal'), R(14, -57, 14, -45, 0, 0, 'metal'), R(10, -45, 14, -45, 0, 0, 'metal'),
-  R(10, 45, 10, 57, 0, 0, 'metal'), R(14, 45, 14, 57, 0, 0, 'metal'), R(10, 45, 14, 45, 0, 0, 'metal'),
-  // South Court mezzanine.
-  R(30, 41, 30, 54, 5, 5, 'glass'), R(30, 41, 39, 41, 5, 5, 'glass'),
-  stairRail(st('mezzStair'), 'x0', 'glass'), R(27, 54, 27, 57, 5, 5, 'glass'), R(27, 57, 30, 57, 5, 5, 'glass'),
+  R(22, -73, 22, -61, 0, 0, 'metal'), R(26, -73, 26, -61, 0, 0, 'metal'), R(22, -61, 26, -61, 0, 0, 'metal'),
+  R(22, 61, 22, 73, 0, 0, 'metal'), R(26, 61, 26, 73, 0, 0, 'metal'), R(22, 61, 26, 61, 0, 0, 'metal'),
 ];
 
 // ─── Blocks (exhibits and obstacles) ──────────────────────────────────────────
@@ -190,86 +242,113 @@ const B = (
 ): Block => ({ id, room, kind, x0, x1, z0, z1, y0, y1, ...extra });
 
 const blocks: Block[] = [
-  // Exterior: stair cheek walls and fountains.
+  // Exterior: stair cheek walls, fountains, the hot-dog cart.
   B('cheekN', 'exterior', 'plinth', 42, 50, -18, -16, -2.4, 0.8),
   B('cheekS', 'exterior', 'plinth', 42, 50, 16, 18, -2.4, 0.8),
   B('fountainN', 'exterior', 'pool', 52, 58, -30, -22, -2.4, -1.75),
   B('fountainS', 'exterior', 'pool', 52, 58, 22, 30, -2.4, -1.75),
   B('hotdog', 'exterior', 'barrier', 57, 59.2, 8, 9.2, -2.4, -1.4, { variant: 'hotdog' }),
 
-  // Lobby.
-  B('infoDesk', 'lobby', 'desk', 13, 19, -3, 3, 0, 1.1),
-  B('lobbyPanel', 'lobby', 'totem', 23.6, 24.4, -1.6, 1.6, 0, 3.2),
-  B('planterNW', 'lobby', 'planter', 24, 26, -10.5, -9, 0, 1.0),
-  B('planterNE', 'lobby', 'planter', 32, 34, -10.5, -9, 0, 1.0),
-  B('planterSW', 'lobby', 'planter', 24, 26, 9, 10.5, 0, 1.0),
-  B('planterSE', 'lobby', 'planter', 32, 34, 9, 10.5, 0, 1.0),
-  B('benchL1', 'lobby', 'bench', 28, 31, -4.3, -3.7, 0, 0.45),
-  B('benchL2', 'lobby', 'bench', 28, 31, 3.7, 4.3, 0, 0.45),
+  // Great Hall: information desk, the totem, flowers in the niches, benches.
+  B('infoDesk', 'greatHall', 'desk', 22.5, 28.5, -3, 3, 0, 1.1),
+  B('lobbyPanel', 'greatHall', 'totem', 31.6, 32.4, -1.6, 1.6, 0, 3.2),
+  B('planterNW', 'greatHall', 'planter', 13, 14.5, -17, -15.5, 0, 1.0),
+  B('planterSW', 'greatHall', 'planter', 13, 14.5, 15.5, 17, 0, 1.0),
+  B('planterNE', 'greatHall', 'planter', 37, 38.5, -17, -15.5, 0, 1.0),
+  B('planterSE', 'greatHall', 'planter', 37, 38.5, 15.5, 17, 0, 1.0),
+  B('benchGH1', 'greatHall', 'bench', 24, 27, -12.3, -11.7, 0, 0.45),
+  B('benchGH2', 'greatHall', 'bench', 24, 27, 11.7, 12.3, 0, 0.45),
 
-  // Dinosaur Hall: skeletons on plinths (cover).
-  B('plinthRex', 'dinoHall', 'plinth', -21, -13, -25, -15, 0, 0.6, { variant: 'rex' }),
-  B('plinthSauro', 'dinoHall', 'plinth', -20.5, -13.5, -8, 8, 0, 0.6, { variant: 'sauropod' }),
-  B('plinthTrike', 'dinoHall', 'plinth', -21, -13, 15, 25, 0, 0.6, { variant: 'trike' }),
+  // Greek and Roman: two rows of statues either side of a clear central aisle.
+  ...[16, 22, 28, 34].flatMap((x, i) => [
+    B(`greekN${i}`, 'greek', 'sculpture', x - 0.7, x + 0.7, 32.3, 33.7, 0, 1.1, { variant: i % 2 ? 'torso' : 'figure' }),
+    B(`greekS${i}`, 'greek', 'sculpture', x - 0.7, x + 0.7, 44.3, 45.7, 0, 1.1, { variant: i % 2 ? 'figure' : 'torso' }),
+  ]),
 
-  // Galleries: benches and free-standing partitions.
-  B('bench1', 'gallery1', 'bench', -37.5, -34.5, -32.3, -31.7, 0, 0.45),
-  B('part2', 'gallery2', 'partition', -39, -33, -22.2, -21.8, 0, 3.6),
-  B('bench3', 'gallery3', 'bench', -37.5, -34.5, -12.3, -11.7, 0, 0.45),
-  B('sculpt4a', 'gallery4', 'sculpture', -41, -39.6, -3.7, -2.3, 0, 1.1, { variant: 'figure' }),
-  B('sculpt4b', 'gallery4', 'sculpture', -32.7, -31.3, 2.3, 3.7, 0, 1.1, { variant: 'torso' }),
-  B('sculpt4c', 'gallery4', 'sculpture', -36.8, -35.2, -0.8, 0.8, 0, 1.3, { variant: 'horse' }),
-  B('bench5', 'gallery5', 'bench', -37.5, -34.5, 11.7, 12.3, 0, 0.45),
-  B('part6', 'gallery6', 'partition', -39, -33, 21.8, 22.2, 0, 3.6),
-  B('bench7', 'gallery7', 'bench', -37.5, -34.5, 31.7, 32.3, 0, 0.45),
+  // Arms and Armor: an equestrian procession down the middle, cases along the walls.
+  ...[-44, -34, -24].map((z, i) => B(`knight${i}`, 'armsArmor', 'knight', 3.5, 6.5, z - 2, z + 2, 0, 0.5)),
+  ...[-45, -38, -22, -16].map((z, i) => B(`armsCaseW${i}`, 'armsArmor', 'case', -1.4, 0.4, z - 0.9, z + 0.9, 0, 2.1)),
+  ...[-45, -35, -27].map((z, i) => B(`armsCaseE${i}`, 'armsArmor', 'case', 9.8, 11.6, z - 0.9, z + 0.9, 0, 2.1)),
 
-  // Egypt: walk-through mastaba chapel, sarcophagi, statue rows, corridor wall.
-  B('mastabaN', 'egyptM', 'mastaba', 6, 20, -24.5, -22, 0, 3.8),
-  B('mastabaS', 'egyptM', 'mastaba', 6, 20, -20, -17.5, 0, 3.8),
-  B('sarcophagusCrawl', 'egyptS', 'sarcophagus', 29, 33, -14.6, -12.6, 0, 1.2),
-  B('sarcophagus2', 'egyptM', 'sarcophagus', 26, 30, -23, -21, 0, 1.2),
-  B('obeliskE', 'egyptM', 'obelisk', -2, -0.8, -21.6, -20.4, 0, 5.4),
-  ...[-2, 6, 14, 22, 30].map((x, i) => B(`statueN${i}`, 'egyptN1', 'statue', x, x + 1.2, -36.4, -35.4, 0, 3.4)),
-  ...[2, 10, 26].map((x, i) => B(`statueS${i}`, 'egyptN2', 'statue', x, x + 1.2, -27.2, -26.6, 0, 3.0, { noCollide: false })),
+  // Africa, Oceania, the Americas: carved poles, dioramas, cases, the suspended canoe.
+  B('dioramaA', 'cultures', 'diorama', 8.5, 11.5, 33, 39, 0, 4.5),
+  B('dioramaB', 'cultures', 'diorama', 8.5, 11.5, 42, 48, 0, 4.5),
+  B('poleA', 'cultures', 'obelisk', 0.4, 1.6, 19.4, 20.6, 0, 6.8, { variant: 'pole' }),
+  B('poleB', 'cultures', 'obelisk', 8.4, 9.6, 25.4, 26.6, 0, 6.5, { variant: 'pole' }),
+  B('poleC', 'cultures', 'obelisk', 0.4, 1.6, 43.4, 44.6, 0, 7, { variant: 'pole' }),
+  B('cultPodium', 'cultures', 'plinth', 2, 7, 36, 42, 0, 0.6),
+  B('caseC1', 'cultures', 'case', 3, 5, 15, 17, 0, 2.1),
+  B('caseC2', 'cultures', 'case', 3, 5, 23, 25, 0, 2.1),
+  B('maskWall', 'cultures', 'partition', 2, 8, 27.8, 28.2, 0, 3.4),
+  B('canoe', 'cultures', 'sculpture', 0, 10, 31, 32.5, 5.6, 6.4, { noCollide: true, variant: 'canoe' }),
 
-  // World Cultures: dioramas, tall carved forms, raised platform, cases, the canoe.
-  B('dioramaA', 'cultures', 'diorama', 33, 38.5, 13, 20, 0, 4.5),
-  B('dioramaB', 'cultures', 'diorama', 33, 38.5, 24, 31, 0, 4.5),
-  B('poleA', 'cultures', 'obelisk', 8, 9.2, 17, 18.2, 0, 8.5, { variant: 'pole' }),
-  B('poleB', 'cultures', 'obelisk', 22, 23.2, 22, 23.2, 0, 7.5, { variant: 'pole' }),
-  B('poleC', 'cultures', 'obelisk', -2, -0.8, 28, 29.2, 0, 9, { variant: 'pole' }),
-  B('cultPodium', 'cultures', 'plinth', 12, 20, 27, 33, 0, 0.6),
-  B('caseC1', 'cultures', 'case', 0, 2, 16, 18, 0, 2.1),
-  B('caseC2', 'cultures', 'case', 26, 28, 16, 18, 0, 2.1),
-  B('caseC3', 'cultures', 'case', 26, 28, 28, 30, 0, 2.1),
-  B('maskWall', 'cultures', 'partition', 2, 10, 24, 24.4, 0, 3.4),
-  B('canoe', 'cultures', 'sculpture', 0, 24, 21.5, 23, 7.2, 8.0, { noCollide: true, variant: 'canoe' }),
+  // Dinosaur Hall: skeletons on plinths (cover) down the centre line.
+  B('plinthRex', 'dinoHall', 'plinth', -16, -9, -35, -25, 0, 0.6, { variant: 'rex' }),
+  B('plinthSauro', 'dinoHall', 'plinth', -15.5, -9.5, -9, 9, 0, 0.6, { variant: 'sauropod' }),
+  B('plinthTrike', 'dinoHall', 'plinth', -16, -9, 25, 35, 0, 0.6, { variant: 'trike' }),
 
-  // North Court: temple, gateway, reflecting pool, relic pedestal.
-  B('temple', 'northCourt', 'temple', 19.5, 28.5, -58.5, -53, 1.2, 8.2),
-  B('gateway', 'northCourt', 'temple', 22, 26, -51, -50, 1.2, 7, { variant: 'gate' }),
-  B('pool', 'northCourt', 'pool', 17, 31, -45.5, -40.5, 0, 0.45),
-  B('pedestalA', 'northCourt', 'plinth', -18, -16, -53, -51, 0, 1.0, { variant: 'relic' }),
-  B('coverNA', 'northCourt', 'sculpture', -32, -29, -48, -45, 0, 1.6, { variant: 'lion' }),
-  B('coverNB', 'northCourt', 'obelisk', -5, -3.8, -50, -48.8, 0, 6.5),
+  // The American Wing: a classical bank facade along the park wall, period-room partitions.
+  B('bankFacade', 'american', 'colonnade', -59.5, -57, -42, -20, 0, 7),
+  B('amPartA', 'american', 'partition', -46, -36, -40, -39.6, 0, 3.6),
+  B('amPartB', 'american', 'partition', -46, -36, -22.4, -22, 0, 3.6),
+  B('amBench', 'american', 'bench', -42.5, -39.5, -31.3, -30.7, 0, 0.45),
+  B('amCase', 'american', 'case', -30, -28, -46, -44, 0, 2.1),
+
+  // European Sculpture Court.
+  B('scFigureNW', 'sculptureCourt', 'sculpture', -50.7, -49.3, -6.7, -5.3, 0, 1.1, { variant: 'figure' }),
+  B('scFigureNE', 'sculptureCourt', 'sculpture', -34.7, -33.3, -6.7, -5.3, 0, 1.1, { variant: 'torso' }),
+  B('scFigureSW', 'sculptureCourt', 'sculpture', -50.7, -49.3, 5.3, 6.7, 0, 1.1, { variant: 'torso' }),
+  B('scLion', 'sculptureCourt', 'sculpture', -36, -33, 5, 8, 0, 1.6, { variant: 'lion' }),
+  B('scHorse', 'sculptureCourt', 'sculpture', -42.8, -41.2, -0.8, 0.8, 0, 1.3, { variant: 'horse' }),
+
+  // Modern and Contemporary: a monumental piece, hanging walls for paintings.
+  B('modernMonument', 'modern', 'sculpture', -45, -37, 28, 34, 0, 1.0, { variant: 'monument' }),
+  B('modernWallA', 'modern', 'partition', -54, -44, 20, 20.4, 0, 3.6),
+  B('modernWallB', 'modern', 'partition', -54, -44, 41.6, 42, 0, 3.6),
+  B('modernBench', 'modern', 'bench', -42.5, -39.5, 21.7, 22.3, 0, 0.45),
+
+  // Egyptian Art: walk-through mastaba chapel, sarcophagi, statues, an obelisk.
+  B('mastabaN', 'egyptM', 'mastaba', 17, 26, -42, -39.75, 0, 3.8),
+  B('mastabaS', 'egyptM', 'mastaba', 17, 26, -37.75, -35.5, 0, 3.8),
+  B('sarcophagusCrawl', 'egyptS', 'sarcophagus', 35.4, 38.4, -32.6, -30.8, 0, 1.2),
+  B('sarcophagus2', 'egyptM', 'sarcophagus', 30, 33.5, -38.2, -36.6, 0, 1.2),
+  B('obeliskE', 'egyptM', 'obelisk', 34, 35.2, -40.2, -39, 0, 5.4),
+  ...[13, 22.5, 26.5, 37].map((x, i) => B(`statueN${i}`, 'egyptN', 'statue', x, x + 1.2, -49.4, -48.4, 0, 3.4)),
+  ...[20, 32].map((x, i) => B(`statueS${i}`, 'egyptN', 'statue', x, x + 1.2, -44.2, -43.6, 0, 3.0)),
+
+  // North Court: temple, gateway, reflecting pool, relic pedestal, cover.
+  B('temple', 'northCourt', 'temple', 29, 37, -75, -69.5, 1.2, 8.2),
+  B('gateway', 'northCourt', 'temple', 31, 35, -66, -65, 1.2, 7, { variant: 'gate' }),
+  B('pool', 'northCourt', 'pool', 6, 18, -71, -64, 0, 0.45),
+  B('pedestalA', 'northCourt', 'plinth', -13, -11, -64, -62, 0, 1.0, { variant: 'relic' }),
+  B('coverNA', 'northCourt', 'sculpture', -30, -27, -64, -61, 0, 1.6, { variant: 'lion' }),
+  B('coverNB', 'northCourt', 'obelisk', -1, 0.2, -66, -64.8, 0, 6.5),
 
   // South Court: monumental sculpture, carved poles, relic pedestal.
-  B('pedestalB', 'southCourt', 'plinth', -18, -16, 51, 53, 0, 1.0, { variant: 'relic' }),
-  B('monument', 'southCourt', 'sculpture', 16, 24, 45, 51, 0, 1.0, { variant: 'monument' }),
-  B('poleS1', 'southCourt', 'obelisk', -32, -30.8, 45, 46.2, 0, 9, { variant: 'pole' }),
-  B('poleS2', 'southCourt', 'obelisk', -5, -3.8, 48.8, 50, 0, 8, { variant: 'pole' }),
-  B('coverSA', 'southCourt', 'sculpture', -32, -29, 45, 48, 0, 1.6, { variant: 'lion' }),
+  B('pedestalB', 'southCourt', 'plinth', -13, -11, 62, 64, 0, 1.0, { variant: 'relic' }),
+  B('monument', 'southCourt', 'sculpture', 10, 18, 60, 66, 0, 1.0, { variant: 'monument' }),
+  B('poleS1', 'southCourt', 'obelisk', -30.6, -29.4, 57.4, 58.6, 0, 9, { variant: 'pole' }),
+  B('poleS2', 'southCourt', 'obelisk', -1, 0.2, 64.8, 66, 0, 8, { variant: 'pole' }),
+  B('coverSA', 'southCourt', 'sculpture', -30, -27, 61, 64, 0, 1.6, { variant: 'lion' }),
 
   // Service level dressing.
-  B('crate1', 'service', 'crate', 10.4, 11.6, -20, -18.8, -6, -4.8),
-  B('crate2', 'service', 'crate', 12.6, 13.6, 18, 19.2, -6, -5),
-  B('crate3', 'svcEast', 'crate', 28.4, 29.6, 14, 15.6, -6, -4.6),
-  B('securityDesk', 'security', 'desk', 18, 21, -1, 1, -6, -5.1),
-  B('labTable', 'lab', 'desk', 25, 27, -3, -1, -6, -5.1),
+  B('crate1', 'service', 'crate', 22.4, 23.6, -20, -18.8, -6, -4.8),
+  B('crate2', 'service', 'crate', 24.6, 25.6, 18, 19.2, -6, -5),
+  B('crate3', 'svcEast', 'crate', 34.4, 35.6, 14, 15.6, -6, -4.6),
+  B('securityDesk', 'security', 'desk', 27.5, 29.5, -1.5, 0.5, -6, -5.1),
+  B('labTable', 'lab', 'desk', 32, 33.5, -3, -1, -6, -5.1),
 ];
 
 const doors: Door[] = [
-  { id: 'egyptSecretDoor', portal: 'egyptM-N2-secret', defaultOpen: false, style: 'secretPivot' },
+  { id: 'egyptSecretDoor', portal: 'egyptM-N-secret', defaultOpen: false, style: 'secretPivot' },
+];
+
+/** Elevators between the ground floor and the second floor (cab footprint 2.8 m). */
+const elevators: Elevator[] = [
+  { id: 'elevGreatHallN', x: 14, z: -26.5, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
+  { id: 'elevGreatHallS', x: 14, z: 26.5, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
+  { id: 'elevCourtN', x: -58, z: -52, facing: '+x', stops: [{ floor: 1, label: '1', room: 'northCourt', y: 0 }, { floor: 2, label: '2', room: 'northCourt', y: F2 }] },
+  { id: 'elevCourtS', x: -58, z: 52, facing: '+x', stops: [{ floor: 1, label: '1', room: 'southCourt', y: 0 }, { floor: 2, label: '2', room: 'southCourt', y: F2 }] },
 ];
 
 const sp = (id: string, x: number, y: number, z: number, yaw = PI / 2): Spawn => ({ id, pos: [x, y, z], yaw });
@@ -277,96 +356,101 @@ const sp = (id: string, x: number, y: number, z: number, yaw = PI / 2): Spawn =>
 const spawns: MuseumMap['spawns'] = {
   // All spawns face west (yaw π/2). On the front steps, facing the facade.
   exterior: [sp('steps1', 46.5, -1.35, -3), sp('steps2', 46.5, -1.35, -1), sp('steps3', 46.5, -1.35, 1), sp('steps4', 46.5, -1.35, 3)],
-  lobby: [sp('lobby1', 28, 0, -2), sp('lobby2', 28, 0, 2), sp('lobby3', 30, 0, -1), sp('lobby4', 30, 0, 1)],
-  // Out of sight of each case, behind cover in the east of each court.
-  teamA: [sp('a1', 35, 0, -56), sp('a2', 36, 0, -52), sp('a3', 35, 0, -44), sp('a4', 36, 0, -40)],
-  teamB: [sp('b1', 35, 0, 56), sp('b2', 36, 0, 52), sp('b3', 35, 0, 44), sp('b4', 36, 0, 40)],
+  lobby: [sp('lobby1', 34, 0, -2), sp('lobby2', 34, 0, 2), sp('lobby3', 35.5, 0, -1), sp('lobby4', 35.5, 0, 1)],
+  // In the east of each court, away from the relic case.
+  teamA: [sp('a1', 33, 0, -58), sp('a2', 37, 0, -58), sp('a3', 29, 0, -55), sp('a4', 35, 0, -54)],
+  teamB: [sp('b1', 33, 0, 58), sp('b2', 37, 0, 58), sp('b3', 29, 0, 55), sp('b4', 35, 0, 54)],
 };
 
 const zones: Zone[] = [
-  { id: 'captureA', kind: 'capture', room: 'northCourt', center: [-17, 0, -52], radius: 3 },
-  { id: 'captureB', kind: 'capture', room: 'southCourt', center: [-17, 0, 52], radius: 3 },
+  { id: 'captureA', kind: 'capture', room: 'northCourt', center: [-12, 0, -63], radius: 3 },
+  { id: 'captureB', kind: 'capture', room: 'southCourt', center: [-12, 0, 63], radius: 3 },
   { id: 'exitAvenue', kind: 'exit', room: 'exterior', center: [46, -1.2, 0], radius: 6 },
-  { id: 'chokeDinoN', kind: 'choke', room: 'dinoHall', center: [-17, 0, -36], radius: 5 },
-  { id: 'chokeDinoS', kind: 'choke', room: 'dinoHall', center: [-17, 0, 36], radius: 5 },
-  { id: 'restrictedService', kind: 'restricted', room: 'service', center: [12, -6, 0], radius: 30 },
+  { id: 'chokeDinoN', kind: 'choke', room: 'dinoHall', center: [-12, 0, -49], radius: 5 },
+  { id: 'chokeDinoS', kind: 'choke', room: 'dinoHall', center: [-12, 0, 49], radius: 5 },
+  { id: 'restrictedService', kind: 'restricted', room: 'service', center: [24, -6, 0], radius: 30 },
   // Artifact Hunt: carry finds to the Registrar's Desk (the information desk) to secure them.
-  { id: 'registrarDesk', kind: 'desk', room: 'lobby', center: [16, 0, 0], radius: 4.5 },
+  { id: 'registrarDesk', kind: 'desk', room: 'greatHall', center: [25.5, 0, 0], radius: 4.5 },
 ];
 
 const slots: Slot[] = [
-  { id: 'caseA', kind: 'relicCase', room: 'northCourt', pos: [-17, 1.0, -52] },
-  { id: 'caseB', kind: 'relicCase', room: 'southCourt', pos: [-17, 1.0, 52] },
-  // Test grabbables on the information desk (M2).
-  { id: 'propBust1', kind: 'prop', room: 'lobby', pos: [14.2, 1.1, -1.2] },
-  { id: 'propBust2', kind: 'prop', room: 'lobby', pos: [14.2, 1.1, 1.2] },
-  { id: 'propVase1', kind: 'prop', room: 'lobby', pos: [17.8, 1.1, 0] },
+  { id: 'caseA', kind: 'relicCase', room: 'northCourt', pos: [-12, 1.0, -63] },
+  { id: 'caseB', kind: 'relicCase', room: 'southCourt', pos: [-12, 1.0, 63] },
+  // Test grabbables on the information desk.
+  { id: 'propBust1', kind: 'prop', room: 'greatHall', pos: [23.7, 1.1, -1.2] },
+  { id: 'propBust2', kind: 'prop', room: 'greatHall', pos: [23.7, 1.1, 1.2] },
+  { id: 'propVase1', kind: 'prop', room: 'greatHall', pos: [27.3, 1.1, 0] },
 ];
 
 const landmarks: MuseumMap['landmarks'] = [
-  { id: 'caseA', room: 'northCourt', pos: [-17, 0, -52] },
-  { id: 'caseB', room: 'southCourt', pos: [-17, 0, 52] },
+  { id: 'caseA', room: 'northCourt', pos: [-12, 0, -63] },
+  { id: 'caseB', room: 'southCourt', pos: [-12, 0, 63] },
   { id: 'steps', room: 'exterior', pos: [46.5, -1.35, 0] },
-  { id: 'desk', room: 'lobby', pos: [20, 0, 0] },
+  { id: 'desk', room: 'greatHall', pos: [30, 0, 0] },
 ];
 
 export const museum: MuseumMap = {
-  rooms, portals, platforms, stairs, rails, blocks, doors, spawns, zones, slots, landmarks,
+  rooms, portals, platforms, stairs, rails, blocks, doors, elevators, spawns, zones, slots, landmarks,
   exteriorFence: { x0: 39, x1: 61, z0: -40, z1: 40 },
 };
 
+/** Plan extents of the building (used by the exterior and the park). */
+export const BUILDING = { x0: -60, x1: 39, z0: -76, z1: 76 };
+
 /*
  * Artifact Hunt candidate slots (brief §16). [id, room, x, z, surface y hint, tier].
- * Obvious: in plain view. Tucked: catwalks, balconies, behind partitions and
- * exhibits. Hidden: the service level, past the secret door and the crawl shaft.
- * The y is resolved against the map so every artifact sits on its surface.
+ * Obvious: in plain view. Tucked: catwalks, balconies, mezzanines, behind
+ * partitions, upstairs corners. Hidden: the service level, past the secret
+ * door and the crawl shaft. Each y is resolved against the map so every
+ * artifact sits on its surface.
  */
 const ARTIFACT_SLOTS: [string, string, number, number, number, NonNullable<Slot['tier']>][] = [
-  // Obvious (16)
-  ['dinoRex', 'dinoHall', -13.6, -24.3, 0.6, 'obvious'],
-  ['dinoSauro', 'dinoHall', -13.9, 7.4, 0.6, 'obvious'],
-  ['dinoTrike', 'dinoHall', -13.6, 24.3, 0.6, 'obvious'],
-  ['gal1Bench', 'gallery1', -36, -32, 0.45, 'obvious'],
-  ['gal3Bench', 'gallery3', -36, -12, 0.45, 'obvious'],
-  ['gal5Bench', 'gallery5', -36, 12, 0.45, 'obvious'],
-  ['gal7Bench', 'gallery7', -36, 32, 0.45, 'obvious'],
-  ['sculptFloor', 'gallery4', -38.5, 3.5, 0, 'obvious'],
-  ['northObelisk', 'northCourt', -2.2, -46.5, 0, 'obvious'],
-  ['northPodium', 'northCourt', 17.2, -50.2, 1.2, 'obvious'],
-  ['northLion', 'northCourt', -30.5, -43.8, 0, 'obvious'],
-  ['southMonument', 'southCourt', 23.3, 45.6, 1.0, 'obvious'],
-  ['southFloor', 'southCourt', -30.5, 50, 0, 'obvious'],
-  ['culturesPodium', 'cultures', 16, 30.5, 0.6, 'obvious'],
-  ['culturesFloor', 'cultures', 4, 20.5, 0, 'obvious'],
-  ['lobbyNiche', 'lobby', 35, -9.6, 0, 'obvious'],
+  // Obvious (17)
+  ['dinoRex', 'dinoHall', -9.4, -34.5, 0.6, 'obvious'],
+  ['dinoSauro', 'dinoHall', -9.9, 8.5, 0.6, 'obvious'],
+  ['dinoTrike', 'dinoHall', -9.4, 34.5, 0.6, 'obvious'],
+  ['amBench', 'american', -41, -31, 0.45, 'obvious'],
+  ['sculptFloor', 'sculptureCourt', -42, -8, 0, 'obvious'],
+  ['modernBench', 'modern', -41, 22, 0.45, 'obvious'],
+  ['greekAisle', 'greek', 25, 39, 0, 'obvious'],
+  ['greekCorner', 'greek', 37, 30, 0, 'obvious'],
+  ['armsSouth', 'armsArmor', 5, -15, 0, 'obvious'],
+  ['armsNorth', 'armsArmor', 10.5, -48, 0, 'obvious'],
+  ['culturesPodium', 'cultures', 4.5, 39, 0.6, 'obvious'],
+  ['culturesFloor', 'cultures', 5, 18.5, 0, 'obvious'],
+  ['northObelisk', 'northCourt', 0.8, -63, 0, 'obvious'],
+  ['northPodium', 'northCourt', 27.6, -66, 1.2, 'obvious'],
+  ['northLion', 'northCourt', -26.3, -62.5, 0, 'obvious'],
+  ['southMonument', 'southCourt', 17.3, 60.7, 1.0, 'obvious'],
+  ['southFloor', 'southCourt', -30, 66, 0, 'obvious'],
   // Tucked (14)
-  ['catE1', 'dinoHall', -8.5, -15, 7, 'tucked'],
-  ['catW1', 'dinoHall', -25.5, 15, 7, 'tucked'],
-  ['catE2', 'dinoHall', -8.5, 28, 7, 'tucked'],
-  ['balconyE', 'lobby', 37.5, 6, 7, 'tucked'],
-  ['balconyN', 'lobby', 2, -9.5, 7, 'tucked'],
-  ['mezzanine', 'southCourt', 35, 50, 5, 'tucked'],
-  ['egyptTomb', 'egyptN1', 20, -34.6, 0, 'tucked'],
-  ['egyptStatues', 'egyptN2', 30, -29, 0, 'tucked'],
-  ['egyptOffering', 'egyptS', 10, -13.5, 0, 'tucked'],
-  ['mastabaPassage', 'egyptM', 13, -21, 0, 'tucked'],
-  ['behindPartition2', 'gallery2', -36, -23.2, 0, 'tucked'],
-  ['behindPartition6', 'gallery6', -36, 23.2, 0, 'tucked'],
-  ['behindDiorama', 'cultures', 36, 21.8, 0, 'tucked'],
-  ['behindTemple', 'northCourt', 24, -59.1, 1.2, 'tucked'],
+  ['catE', 'dinoHall', -3.5, -15, F2, 'tucked'],
+  ['catW', 'dinoHall', -20.5, 15, F2, 'tucked'],
+  ['bridgeN', 'dinoHall', -12, -24.5, F2, 'tucked'],
+  ['balconyE', 'greatHall', 37.5, 10, F2, 'tucked'],
+  ['balconyN', 'greatHall', 30, -26.5, F2, 'tucked'],
+  ['mezzN', 'northCourt', -45, -52, F2, 'tucked'],
+  ['mezzS', 'southCourt', -45, 52, F2, 'tucked'],
+  ['egyptTomb', 'egyptN', 24, -46.5, 0, 'tucked'],
+  ['egyptOffering', 'egyptS', 20, -31, 0, 'tucked'],
+  ['mastabaPassage', 'egyptM', 21, -38.75, 0, 'tucked'],
+  ['behindAmPartition', 'american', -41, -40.8, 0, 'tucked'],
+  ['grandLanding', 'grandStair', -1, -10, F2, 'tucked'],
+  ['paintCorner', 'paintW3', -58.5, 8.5, F2, 'tucked'],
+  ['asianCorner', 'asianArt', 11, -48.5, F2, 'tucked'],
   // Hidden (12)
-  ['svcNorth', 'service', 12, -30, -6, 'hidden'],
-  ['svcSouth', 'service', 12, 20, -6, 'hidden'],
-  ['svcEast1', 'svcEast', 30, -10, -6, 'hidden'],
-  ['svcEast2', 'svcEast', 30, 25, -6, 'hidden'],
-  ['freightN', 'svcCrossN', 20, -30, -6, 'hidden'],
-  ['freightS', 'svcCrossS', 22, 30, -6, 'hidden'],
-  ['securityOffice', 'security', 16, 3, -6, 'hidden'],
-  ['labTable', 'lab', 26, -2, -5.1, 'hidden'],
-  ['stairNBottom', 'stairN', 12, -45.8, -6, 'hidden'],
-  ['pastSecretDoor', 'egyptN2', 16, -27.4, 0, 'hidden'],
-  ['pastCrawl', 'egyptM', 31, -17, 0, 'hidden'],
-  ['behindSarcophagus', 'egyptS', 31, -15.05, 0, 'hidden'],
+  ['svcNorth', 'service', 24, -50, -6, 'hidden'],
+  ['svcSouth', 'service', 24, 20, -6, 'hidden'],
+  ['svcEast1', 'svcEast', 36, -10, -6, 'hidden'],
+  ['svcEast2', 'svcEast', 36, 25, -6, 'hidden'],
+  ['freightN', 'svcCrossN', 30, -40, -6, 'hidden'],
+  ['freightS', 'svcCrossS', 30, 40, -6, 'hidden'],
+  ['securityOffice', 'security', 28, 3, -6, 'hidden'],
+  ['labTable', 'lab', 32.75, -2, -5.1, 'hidden'],
+  ['stairNBottom', 'stairN', 24, -61.8, -6, 'hidden'],
+  ['pastSecretDoor', 'egyptN', 29, -44.4, 0, 'hidden'],
+  ['pastCrawl', 'egyptM', 37, -35, 0, 'hidden'],
+  ['behindSarcophagus', 'egyptS', 37, -33.05, 0, 'hidden'],
 ];
 
 for (const [id, room, x, z, yHint, tier] of ARTIFACT_SLOTS) {

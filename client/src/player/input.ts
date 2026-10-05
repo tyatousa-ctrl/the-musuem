@@ -110,6 +110,9 @@ export class XRInput {
   private yHeld = 0;
   private yFired = false;
   private snapArmed = true;
+  /** VR sprint: click the left stick to start; it stays on until you stop moving. */
+  sprintOn = false;
+  private stillFor = 0;
   /** Last raw buttons/axes per hand, for the M2 button-index readout. */
   readonly raw: Record<'left' | 'right', { buttons: number[]; axes: number[] }> = { left: { buttons: [], axes: [] }, right: { buttons: [], axes: [] } };
   /** Index of a button that behaves like a menu button, if the browser exposes one. */
@@ -132,7 +135,9 @@ export class XRInput {
       const ax = gp.axes[b.stickX] ?? 0, ay = gp.axes[b.stickY] ?? 0;
       if (hand === 'left') {
         out.move.set(Math.abs(ax) > 0.15 ? ax : 0, Math.abs(ay) > 0.15 ? -ay : 0);
-        out.sprint = !!pressed[b.thumbstickPress];
+        if (edge(b.thumbstickPress)) this.sprintOn = !this.sprintOn;
+        if (out.move.lengthSq() < 0.01) { this.stillFor += dt; if (this.stillFor > 0.35) this.sprintOn = false; } else this.stillFor = 0;
+        out.sprint = this.sprintOn;
         out.grabLeft = !!pressed[b.squeeze];
         out.useLeft = !!pressed[b.trigger];
         // Menu: a dedicated button if exposed (index > 5), else hold Y.

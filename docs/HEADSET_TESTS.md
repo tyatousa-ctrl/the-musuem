@@ -60,3 +60,13 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Picking up.** Grab an artifact from the floor and from the top of a bench. Does reaching down feel OK?
 - [ ] **Delivering.** Walk into the gold ring at the desk while holding an artifact. You should hear a chime and see "+1/+3/+5".
 - [ ] **Teams.** Switch the totem to Teams and play 2v2.
+
+## Met-style layout and second floor
+
+- [ ] **Banner.** From the entrance doors, is the "Welcome to The Museum" banner readable and not uncomfortably high?
+- [ ] **Scale.** Does the wider Great Hall feel grand but still walkable? Is the Dinosaur Hall too long?
+- [ ] **Stairs.** Walk and sprint up the Grand Staircase, the catwalk stairs in the Dinosaur Hall, and the court stairs. Any stutter, sliding or vignette flicker?
+- [ ] **Elevators.** Step into a cab (Great Hall corners or courts), point at the panel and press the other floor. Is the fade-and-ding comfortable? Do you face the same way afterwards?
+- [ ] **Sprint toggle.** Click the left stick while moving: you should speed up, stay sprinting while you keep moving, and stop sprinting when you let go. Click again to turn it off.
+- [ ] **Frame rate.** Look down the Dinosaur Hall and across the Great Hall from the balcony. Note any drops below 72 fps.
+

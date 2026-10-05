@@ -18,6 +18,7 @@ import { AudioEngine, type Sfx } from './audio/audio';
 import { PanelInput } from './ui/panel';
 import { Announcer, HOW_TO, LobbyTotem, PersonalMenu, WristHud, fmtTime } from './ui/menus';
 import { DesktopOverlay } from './ui/overlay';
+import { ElevatorPanels } from './ui/elevators';
 import { CLIENT_MODES, lobbyHud, type ClientMode, type ClientModeCtx } from './modes';
 
 declare global { interface Window { __museum?: { ready: boolean; game: Game } } }
@@ -45,6 +46,7 @@ export class Game {
   readonly objects = new WorldObjects();
   readonly breakables = new Breakables();
   doors!: Doors;
+  elevators!: ElevatorPanels;
   private desktop: DesktopInput;
   private xrInput = new XRInput();
   private actions: Actions = emptyActions();
@@ -103,6 +105,9 @@ export class Game {
     this.scene.add(this.menu.panel.mesh, this.announcer.panel.mesh);
     this.panels.panels.add(this.menu.panel);
     this.player.camera.add(this.perf.panel);
+    this.elevators = new ElevatorPanels(museum, (e, floor) => this.rideElevator(e.id, floor));
+    this.scene.add(this.elevators.group);
+    for (const p of this.elevators.panels) this.panels.panels.add(p);
     this.perf.panel.position.set(-0.18, -0.12, -0.5);
 
     const steps = museum.spawns.exterior[0];
@@ -142,7 +147,10 @@ export class Game {
     this.net.onStatus = (s, detail) => this.overlay.status(s === 'connected' ? '' : detail ?? s, s === 'full' || s === 'offline');
     await this.net.connect();
     const net = this.net;
-    net.on('teleport', (m) => this.player.teleport(m.pos, m.yaw));
+    net.on('teleport', (m) => {
+      if (m.fade) { this.player.flash(); this.audio.play('ding', undefined, { gain: 0.7 }); }
+      this.player.teleport(m.pos, m.keepYaw ? this.player.yaw : m.yaw);
+    });
     net.on('knockback', (m) => { this.player.knockback(m.vel); this.haptic('left', 0.6, 120); this.haptic('right', 0.6, 120); });
     net.on('announcement', (m) => { this.announcer.show(m.text, m.tone); if (m.tone === 'good') this.audio.play('score', undefined, { gain: 0.6 }); if (m.tone === 'bad') this.audio.play('bad'); });
     net.on('glassCracked', (m) => { this.audio.play('crack', m.pos, { gain: 1.2 }); this.hapticNear(m.pos, 0.8); });
@@ -279,6 +287,7 @@ export class Game {
 
     // UI.
     this.menu.update();
+    this.elevators.update();
     this.totem?.update();
     this.announcer.update();
     this.updateHud(xr);
@@ -373,7 +382,9 @@ export class Game {
         if (id) this.grab(h, id, true);
         else {
           const door = this.doors.near(head, 2.2);
+          const cab = ElevatorPanels.cabAt(museum, this.player.feet);
           if (door) { net.send('useDoor', { id: door }); this.audio.play('door', this.doors.position(door)); }
+          else if (cab) this.rideElevator(cab.e.id, cab.e.stops.find((s) => s.floor !== cab.floor)!.floor);
         }
       }
     }
@@ -416,6 +427,20 @@ export class Game {
     this.objects.clearPrediction(hand.heldId);
     hand.heldId = '';
     this.net!.send('release', { hand: h, pos: [hand.pos.x, hand.pos.y, hand.pos.z], vel: [vel.x, vel.y, vel.z] });
+  }
+
+  /** Ride an elevator: the server moves us (it checks we are in the cab). Offline, move locally. */
+  rideElevator(id: string, floor: number) {
+    this.audio.play('ui');
+    if (this.net) { this.net.send('elevator', { id, floor }); return; }
+    const e = museum.elevators.find((x) => x.id === id);
+    const to = e?.stops.find((s) => s.floor === floor);
+    const from = e && ElevatorPanels.cabAt(museum, this.player.feet);
+    if (!e || !to || !from || from.floor === floor) return;
+    this.player.flash();
+    this.audio.play('ding', undefined, { gain: 0.7 });
+    const f = this.player.feet;
+    this.player.teleport([f.x, to.y, f.z], this.player.yaw);
   }
 
   /** Desktop reach: briefly put the simulated hand at a target and send the pose now. */
