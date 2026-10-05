@@ -41,7 +41,7 @@ const eye = feetY + 1.65;
 const pitch = Math.atan2(target.y - eye, 1.0);
 await page.evaluate(`(() => { const g = ${G}; g.player.teleport([${target.x}, ${feetY}, ${target.z + 1.0}], 0); g.player.pitch = ${pitch}; })()`);
 await page.waitForTimeout(1500);
-const hudNear = await page.evaluate(`document.getElementById('hud').innerText`);
+const hudNear = (await page.evaluate(`document.getElementById('hud').innerText`)) as string;
 console.log('HUD near:', JSON.stringify(hudNear));
 if (!/Burning|Hot/.test(hudNear)) fail('warmer/colder did not read hot next to an artifact');
 await page.screenshot({ path: 'docs/screens/_smoke-hunt-find.png' });
