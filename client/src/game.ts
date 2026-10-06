@@ -10,7 +10,7 @@ import { BOOKMARKS } from './debug/bookmarks';
 import { PerfHud } from './debug/perf';
 import { DesktopInput, XRInput, emptyActions, type Actions } from './player/input';
 import { Player } from './player/player';
-import { Net } from './multiplayer/net';
+import { Net, type NetState } from './multiplayer/net';
 import { Avatars } from './multiplayer/avatars';
 import { Breakables, WorldObjects } from './interaction/objects';
 import { Doors } from './interaction/doors';
@@ -393,7 +393,12 @@ export class Game {
       this.punchAnim = 1;
       const caseId = this.breakables.inFront(head, tmpDir, 2.0);
       const target = this.playerInFront(head, tmpDir, 1.5);
-      if (caseId) {
+      const agent = !caseId && !target ? this.agentInFront(head, tmpDir, 1.8) : null;
+      if (agent) {
+        // A tap on the shoulder (Crowd Control).
+        this.reachTo('right', agent.pos);
+        net.send('touchAgent', { id: agent.id });
+      } else if (caseId) {
         this.reachTo('right', this.breakables.position(caseId)!);
         net.send('hitBreakable', { id: caseId, hand: 'right', speed: 4 });
         this.audio.play('thud', this.breakables.position(caseId)!);
@@ -487,6 +492,19 @@ export class Game {
       if (along < 0 || along > range) return;
       const off = p.addScaledVector(dir, -along).length();
       if (off < 0.45 && along + off * 3 < bestScore) { bestScore = along + off * 3; best = id; }
+    });
+    return best;
+  }
+
+  /** Nearest synced NPC whose body is in front of the camera within `range`. */
+  private agentInFront(origin: THREE.Vector3, dir: THREE.Vector3, range: number): { id: string; pos: THREE.Vector3 } | null {
+    let best: { id: string; pos: THREE.Vector3 } | null = null, bestD = range;
+    this.net?.state?.agents?.forEach((a: NetState, id: string) => {
+      tmpB.set(a.x, a.y + 1.2, a.z).sub(origin);
+      tmpB.y *= 0.3;
+      const along = tmpB.dot(dir);
+      if (along < 0 || along > bestD) return;
+      if (tmpB.addScaledVector(dir, -along).length() < 0.6) { bestD = along; best = { id, pos: new THREE.Vector3(a.x, a.y + 1.2, a.z) }; }
     });
     return best;
   }

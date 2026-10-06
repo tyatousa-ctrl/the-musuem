@@ -13,6 +13,12 @@ export type NetState = any;
  * it if the server restarted), streams poses at 20 Hz, measures RTT and the
  * server clock offset, and fans out one-shot events.
  */
+/** Every server event the client relays to listeners (a missing key is a type error). */
+const RELAYED: Record<Exclude<keyof ServerEvents, 'pong'>, true> = {
+  glassCracked: true, glassShattered: true, alarm: true, ko: true, hit: true, knockback: true,
+  teleport: true, scored: true, announcement: true, grabRejected: true, crowd: true,
+};
+
 export class Net {
   room: Room | null = null;
   readonly client = new Client(SERVER_URL);
@@ -46,7 +52,7 @@ export class Net {
       }
     }
     const room = this.room!;
-    for (const type of ['glassCracked', 'glassShattered', 'alarm', 'ko', 'hit', 'knockback', 'teleport', 'scored', 'announcement', 'grabRejected'] as (keyof ServerEvents)[]) {
+    for (const type of Object.keys(RELAYED) as (keyof ServerEvents)[]) {
       room.onMessage(type, (p: unknown) => this.emit(type, p));
     }
     room.onMessage('pong', (p: ServerEvents['pong']) => {
@@ -68,9 +74,12 @@ export class Net {
     if (this.room && this.status === 'connected') this.room.send(type, payload);
   }
 
-  on<K extends keyof ServerEvents>(type: K, fn: Listener<K>) {
+  /** Subscribe to a server event; returns an unsubscribe function. */
+  on<K extends keyof ServerEvents>(type: K, fn: Listener<K>): () => void {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set());
-    this.listeners.get(type)!.add(fn as (p: unknown) => void);
+    const f = fn as (p: unknown) => void;
+    this.listeners.get(type)!.add(f);
+    return () => { this.listeners.get(type)?.delete(f); };
   }
 
   private emit(type: string, p: unknown) { this.listeners.get(type)?.forEach((fn) => fn(p)); }

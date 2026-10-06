@@ -113,9 +113,26 @@ How each item was verified:
 
 Not verified in headset.
 
-### M7–M9: not started
+### M7 — Crowd Control: done (not verified in headset)
 
-Crowd Control and Insurance Fraud are listed as "coming soon" on the lobby totem. Their join-in-progress rules will be added with each mode.
+| Item | Status |
+|---|---|
+| Shared agent system: ground-floor navigation over rooms, portals and exhibits (`shared/rules/agents.ts`), synced NPCs on the server (`AgentSystem`), simulated at 10 Hz | unit, bot |
+| One-way visitor circuit in map data (Great Hall → Arms and Armor → Dinosaur Hall → Sculpture Court → Modern → Dinosaur Hall → Africa/Oceania/Americas → Great Hall exit), with floor arrows, ENTRANCE and EXIT signs | unit (every leg walkable), browser |
+| Four closed areas (Egypt, the staff stair, both courts) with red rings and STAFF ONLY signs; detour paths for lost visitors | unit |
+| Tourist types: normal, kid (runs, may ignore the first touch, strays again), group (followers walk the leader's trail), stubborn (3 touches), lost (heads for closed areas), tour guide (gathers nearby visitors), influencer (stops to film in doorways) | unit |
+| Touching: VR hands or walking into a tourist; desktop click taps the tourist in front. Strays turn around; on-route tourists just get huffy | unit, bot, browser |
+| Tools: 6 brass stanchions that link into velvet ropes (ropes block; strays turn back at them) and 3 "Please follow the arrows" signs, all shared grabbables | unit, bot, browser |
+| Scoring: +1 per visitor out of the exit, −1 per visitor leaving by the entrance, −2 per visitor entering a closed area; congestion meter (jammed doorways, people stuck at ropes) and breach meter; either full fails the round; 0–3 stars | unit |
+| Five waves of rising size and difficulty; cap of 40 tourists at once | unit |
+| Instanced rendering: the whole crowd is 7 draw calls with a procedural walk bob, mood markers over heads, comic speech bubbles and sounds | browser (`tools/smoke/crowd-desktop.ts`: 41 draws in the Great Hall with the crowd) |
+| Join-in-progress: immediately, as another security guard; the wave continues | bot |
+
+Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded voice lines.
+
+### M8–M9: not started
+
+Insurance Fraud is listed as "coming soon" on the lobby totem.
 
 ## Known gaps and issues
 

@@ -94,7 +94,54 @@ export const tunables = {
     /** Planar radius around the Registrar's Desk that secures a carried artifact, m. */
     deliverRadius: 4.5,
   },
-  crowdControl: { waves: 5, maxAgents: 40 },
+  crowdControl: {
+    waves: 5,
+    /** Most tourists in the museum at once (Quest budget; validate on device). */
+    maxAgents: 40,
+    /** Tourists per wave (each group member counts). */
+    waveSizes: [10, 14, 18, 22, 26],
+    /** Seconds between arrivals in wave 1; later waves arrive a little faster. */
+    spawnIntervalSec: 2,
+    /** Seconds after a wave has fully arrived before the next one starts. */
+    waveGapSec: 35,
+    /** Tourist walking speed, m/s (kids run). */
+    walkSpeed: 1.3,
+    kidSpeed: 2.1,
+    /** Chance a tourist turns the wrong way at each circuit point, by wave. */
+    wrongTurnChance: [0.015, 0.02, 0.025, 0.03, 0.035],
+    /** Chance a tourist walks in the wrong way from the start, by wave. */
+    wrongAtStartChance: [0.15, 0.2, 0.25, 0.3, 0.35],
+    /** Chance a lost tourist takes a detour toward a closed area when it passes one. */
+    lostDetourChance: 0.7,
+    /** Touches a stubborn tourist needs. */
+    stubbornTouches: 3,
+    /** Seconds a redirected tourist keeps to the route before it might stray again. */
+    calmSec: 20,
+    /** Hand-to-body distance that counts as a touch, m. */
+    touchRadius: 0.4,
+    /** Player-body-to-tourist distance that counts as a bump, m. */
+    bumpRadius: 0.55,
+    touchCooldownSec: 0.8,
+    /** A sign turns wrong-way and lost tourists around within this radius, m. */
+    signRadius: 1.8,
+    /** Longest rope between two stanchions, m. */
+    ropeMaxLen: 2.6,
+    /** Seconds an influencer stops to film in a doorway. */
+    filmSec: 14,
+    /** Tourists a doorway takes before it counts as jammed. */
+    chokeCapacity: 5,
+    /** Congestion meter per extra tourist per second in a jammed doorway (fails at 1). */
+    congestionPerAgentSec: 0.006,
+    congestionDrainPerSec: 0.01,
+    /** Breach meter per tourist per second inside a closed area (fails at 1). */
+    breachPerAgentSec: 0.012,
+    breachDrainPerSec: 0.004,
+    pointsRouted: 1,
+    penaltyWrongExit: 1,
+    penaltyBreach: 2,
+    /** Score per visitor needed for 1, 2 and 3 stars. */
+    starThresholds: [0.4, 0.65, 0.85],
+  },
   insuranceFraud: { timeLimitSec: 5 * 60, securityHoldSec: 8, ultraFinalShare: 0.6 },
 } as const;
 

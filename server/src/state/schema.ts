@@ -59,6 +59,18 @@ export const BreakableT = schema({
 }, 'Breakable');
 export type BreakableT = SchemaType<typeof BreakableT>;
 
+/** A server-simulated NPC (Crowd Control tourists; later Insurance Fraud guards), synced at 10 Hz. */
+export const AgentT = schema({
+  id: t.string().default(''),
+  /** Index into TOURIST_KINDS (or a guard kind later). */
+  kind: t.uint8().default(0),
+  /** Index into MOODS. */
+  mood: t.uint8().default(0),
+  x: t.float32().default(0), y: t.float32().default(0), z: t.float32().default(0),
+  yaw: t.float32().default(0),
+}, 'Agent');
+export type AgentT = SchemaType<typeof AgentT>;
+
 export const DoorT = schema({
   id: t.string().default(''),
   open: t.boolean().default(false),
@@ -85,9 +97,17 @@ export const PartyState = schema({
   huntTimeMin: t.uint8().default(6),
   /** Artifact Hunt: false = free-for-all, true = teams. */
   huntTeams: t.boolean().default(false),
+  /** Crowd Control: wave, meters (0..1) and tallies. */
+  ccWave: t.uint8().default(0),
+  ccCongestion: t.float32().default(0),
+  ccBreach: t.float32().default(0),
+  ccScore: t.int16().default(0),
+  ccRouted: t.int16().default(0),
+  ccSpawned: t.int16().default(0),
   players: t.map(PlayerT),
   objects: t.map(ObjectT),
   breakables: t.map(BreakableT),
   doors: t.map(DoorT),
+  agents: t.map(AgentT),
 }, 'PartyState');
 export type PartyState = SchemaType<typeof PartyState>;

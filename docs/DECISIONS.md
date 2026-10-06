@@ -60,3 +60,17 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 
 **Banner spelling.** The banner reads "Welcome to The Museum", using the same `MUSEUM_NAME` as the facade inscription. The request spelled it "Musuem" (as the repo name does); it is a one-line change if that spelling is intended.
 
+**Touching only redirects strays.** The brief says a touch makes a tourist "turn around". Taken literally, every accidental bump would send happy visitors the wrong way, which is especially likely on desktop, where walking into someone counts. So a touch turns around tourists who are walking the wrong way or heading into a closed area. A tourist already on the route just reacts with comic indignation ("Hey!"). Group followers ignore touches; you have to turn the leader.
+
+**Players and tourists don't collide.** Being pushed around by NPCs in VR is uncomfortable, and so is getting stuck against a crowd. Tourists don't steer around players, and players pass through them; walking into one counts as a touch. Stanchions, ropes and exhibits do block tourists.
+
+**Ropes are implied by stanchions.** There is no separate rope object to manage. Every standing stanchion links to its nearest neighbours within 2.6 m (at most two ropes each), on both the server and the client, using the same function. A rope blocks tourists. A stray who walks into one takes the hint and turns around; a visitor on the route waits, and waiting adds to the congestion meter, which covers the brief's "blocked exits" penalty.
+
+**CPU walk bob instead of a vertex shader.** The brief asks for a vertex-shader walk bob. With at most 40 tourists, setting each instance's matrix on the CPU (a bob, a sway and a hop when huffy) is negligible, and it avoids patching Three.js shaders. There is still no skeletal animation, and the whole crowd is seven instanced draw calls.
+
+**Desktop tap.** Desktop players can't reach out, so a click taps the tourist in front of them (within 1.8 m). It is sent as a `touchAgent` request, and the server checks that the tourist is within 2 m of the player. VR touches are detected on the server from hand poses, so VR needs no extra message.
+
+**Doors are not a Crowd Control tool yet.** The only door in the museum is Egypt's secret door, and it is not on the circuit. Stanchions, ropes and signs cover the brief's routing tools for now. Fire doors on the circuit can be added as map data later without code changes to the mode.
+
+**The client relays every server event.** `Net` used a hand-kept list of event names, so the new `crowd` event was silently dropped. It now relays every key of `ServerEvents`, and the list is checked by the type system.
+

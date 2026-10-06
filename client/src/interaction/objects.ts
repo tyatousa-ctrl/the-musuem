@@ -59,6 +59,39 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
     glow.name = 'glow';
     g.add(glow);
     g.scale.setScalar(1.4); // big enough to spot across a room
+  } else if (kind === 'stanchion') {
+    // Brass queue post, held by its top: the origin is the grab point, the base sits 0.95 m below.
+    const brass = new THREE.MeshLambertMaterial({ color: 0xc9a24f, emissive: 0x3a2a0a });
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.9, 8), brass);
+    post.position.y = -0.47;
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), brass);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.04, 14), brass);
+    base.position.y = -0.93;
+    g.add(post, top, base);
+  } else if (kind === 'sign') {
+    // "Please follow the arrows" sandwich sign on a post; the origin is the top of the post.
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 192;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#1d2a44'; x.fillRect(0, 0, 256, 192);
+    x.strokeStyle = '#c9a24f'; x.lineWidth = 8; x.strokeRect(6, 6, 244, 180);
+    x.fillStyle = '#f3dc9a'; x.font = 'bold 34px Georgia, serif'; x.textAlign = 'center';
+    x.fillText('PLEASE', 128, 52); x.fillText('FOLLOW THE', 128, 92); x.fillText('ARROWS', 128, 132);
+    x.font = 'bold 44px sans-serif'; x.fillText('➜', 128, 178);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.38, 0.03), [
+      new THREE.MeshLambertMaterial({ color: 0x1d2a44 }), new THREE.MeshLambertMaterial({ color: 0x1d2a44 }),
+      new THREE.MeshLambertMaterial({ color: 0x1d2a44 }), new THREE.MeshLambertMaterial({ color: 0x1d2a44 }),
+      new THREE.MeshBasicMaterial({ map: tex }), new THREE.MeshBasicMaterial({ map: tex }),
+    ]);
+    board.position.y = -0.25;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 6), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+    post.position.y = -0.5;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.04, 12), new THREE.MeshLambertMaterial({ color: 0x333333 }));
+    base.position.y = -0.98;
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshLambertMaterial({ color: 0xc9a24f }));
+    g.add(board, post, base, knob);
   } else if (variant === 'vase') {
     const vase = new THREE.Mesh(new THREE.LatheGeometry([0, 0.06, 0.1, 0.08, 0.05, 0.07].map((r, i) => new THREE.Vector2(r || 0.001, i * 0.05)), 12), new THREE.MeshLambertMaterial({ color: 0x3e6fa8 }));
     vase.position.y = -0.1;

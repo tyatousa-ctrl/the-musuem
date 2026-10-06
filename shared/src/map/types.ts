@@ -129,6 +129,16 @@ export interface Slot {
   yaw?: number; maxW?: number; maxH?: number;
 }
 
+/**
+ * Crowd Control's one-way visitor circuit (brief §17), ground floor only.
+ * Straight lines between consecutive points are walkable (checked by a test).
+ */
+export interface VisitorCircuit {
+  /** From the entrance (first) to the exit (last). */
+  points: Vec3[];
+  /** Wrong turns lost visitors take: from circuit point `from` along `path` to a restricted zone. */
+  detours: { from: number; zone: string; label: string; path: Vec3[] }[];
+}
 export interface WaypointNode { id: string; pos: Vec3; rooms: RoomId[] }
 export interface WaypointEdge { a: string; b: string; len: number; oneWay?: boolean }
 
@@ -151,6 +161,7 @@ export interface MuseumMap {
   slots: Slot[];
   /** Extra waypoint nodes beyond portal centres (bases, desks, landmarks). */
   landmarks: { id: string; room: RoomId; pos: Vec3 }[];
+  circuit: VisitorCircuit;
   /** Walkable bounds for the exterior: invisible fences. */
   exteriorFence: Rect;
 }

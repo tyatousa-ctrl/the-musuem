@@ -4,6 +4,7 @@ import type { Net, NetState } from '../multiplayer/net';
 import type { AudioEngine } from '../audio/audio';
 import type { WorldObjects } from '../interaction/objects';
 import { fmtTime } from '../ui/menus';
+import { crowdControl } from './crowd';
 
 /** What a client mode can touch (brief §14). */
 export interface ClientModeCtx {
@@ -132,7 +133,7 @@ const artifactHunt: ClientMode = {
 };
 
 /** Client mode registry; one line per mode. */
-export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, tour };
+export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, crowdControl, tour };
 
 export function lobbyHud(ctx: ClientModeCtx): string[] {
   const s = ctx.net.state;

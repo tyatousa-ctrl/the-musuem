@@ -21,6 +21,8 @@ const SPAWN_B = museum.spawns.teamB[0].pos;
 process.env.MUSEUM_TUNABLES = JSON.stringify({
   round: { countdownSec: 0.2, resultsSec: 0.3 },
   net: { maxPoseSpeed: 10000, reconnectWindowSec: 5 },
+  // Crowd Control: quick arrivals, and everyone starts out going the wrong way.
+  crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
 });
 
 const PORT = 25670 + Math.floor(Math.random() * 300);
@@ -247,6 +249,62 @@ describe('Artifact Hunt, scripted', () => {
     await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
     let left = 0;
     st(a).objects.forEach((o: any) => { if (o.kind === 'artifact') left++; });
+    expect(left).toBe(0);
+    await Promise.all([a.leave(), b.leave()]);
+  });
+});
+
+describe('Crowd Control, scripted', () => {
+  it('tourists arrive, a touch turns a wrong-way tourist around, stanchions are grabbable, late joiners play', async () => {
+    const a = await join('crowd-party-112', 'c1');
+    const events: { type: string; effect?: string }[] = [];
+    a.onMessage('crowd', (m: { type: string; effect?: string }) => events.push(m));
+    a.send('selectMode', { mode: 'crowdControl' });
+    await waitFor(() => st(a).mode === 'crowdControl', 2000, 'mode');
+    a.send('startRound', {});
+    await waitFor(() => st(a).phase === 'playing', 3000, 'playing');
+    await waitFor(() => st(a).agents.size >= 2, 5000, 'tourists');
+    expect(st(a).ccWave).toBe(1);
+
+    // Everyone starts wrong-way (mood 1). Reach out and touch one until it turns around.
+    const touched = async () => {
+      for (let i = 0; i < 40; i++) {
+        let target: any;
+        st(a).agents.forEach((g: any) => { if (!target && g.mood === 1) target = g; });
+        if (target) pose(a, target.x + 0.7, 0, target.z, [target.x, 1.1, target.z]);
+        await sleep(120);
+        if (events.some((e) => e.type === 'touched' && e.effect === 'turned')) return true;
+        pose(a, 30, 0, 0); // step back so the next touch is fresh
+        await sleep(120);
+      }
+      return false;
+    };
+    expect(await touched()).toBe(true);
+
+    // The tools: six stanchions and three signs, grabbable like any other object.
+    let stanchion: any;
+    let tools = 0;
+    st(a).objects.forEach((o: any, id: string) => { if (o.kind === 'stanchion' || o.kind === 'sign') tools++; if (!stanchion && o.kind === 'stanchion') stanchion = { id, ...o.toJSON() }; });
+    expect(tools).toBe(9);
+    pose(a, stanchion.x + 0.4, 0, stanchion.z, [stanchion.x, stanchion.y, stanchion.z]);
+    await sleep(80);
+    a.send('grab', { objectId: stanchion.id, hand: 'right' });
+    await waitFor(() => st(a).objects.get(stanchion.id)?.status === 'carried', 2000, 'stanchion carried');
+    a.send('release', { hand: 'right', pos: [stanchion.x + 0.4, 1.2, stanchion.z + 2], vel: [0, 0, 0] });
+    await waitFor(() => st(a).objects.get(stanchion.id)?.status === 'rest', 2000, 'stanchion placed');
+    expect(st(a).objects.get(stanchion.id).y).toBeCloseTo(0.95, 2); // stands upright on the floor
+
+    // Join-in-progress: immediately, as another security guard.
+    const b = await join('crowd-party-112', 'c2');
+    await waitFor(() => st(a).players.get('c2') !== undefined, 2000, 'joined');
+    expect(st(a).players.get('c2').status).toBe('active');
+    await waitFor(() => st(b).agents?.size > 0, 2000, 'late joiner sees tourists');
+
+    a.send('endRound', {});
+    await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
+    expect(st(a).agents.size).toBe(0);
+    let left = 0;
+    st(a).objects.forEach((o: any) => { if (o.kind === 'stanchion' || o.kind === 'sign') left++; });
     expect(left).toBe(0);
     await Promise.all([a.leave(), b.leave()]);
   });

@@ -99,7 +99,7 @@ npm run screens         # capture every camera bookmark to docs/screens/ (dev se
 npm run smoke           # two browsers join one party, see each other, start a round
 ```
 
-`tools/smoke/ctr-desktop.ts` plays a full Capture the Relic round in two real browsers on desktop controls. The setup commands are in its header.
+`tools/smoke/hunt-desktop.ts`, `tools/smoke/crowd-desktop.ts` and `tools/smoke/movement-desktop.ts` cover Artifact Hunt, Crowd Control, and walking, sprinting, stairs and elevators. `tools/smoke/ctr-desktop.ts` plays a full Capture the Relic round in two real browsers on desktop controls. The setup commands are in its header.
 
 ### Asset scripts
 

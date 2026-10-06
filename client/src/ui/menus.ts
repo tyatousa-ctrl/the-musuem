@@ -177,6 +177,11 @@ export class LobbyTotem {
       p.button('huntTeams', s.huntTeams ? 'Switch to FFA' : 'Switch to teams', W - 320, y, 280, 54, { small: true, enabled: host, onClick: () => this.net.send('setSetting', { key: 'huntTeams', value: !s.huntTeams }) });
       y += 66;
     }
+    if (s.mode === 'crowdControl') {
+      p.text('Five waves of tourists, no time limit.', 50, y + 38, 28, CREAM);
+      p.text('Touch anyone going the wrong way. Ropes and signs help.', 50, y + 76, 24, DIM);
+      y += 100;
+    }
 
     // Start + audio toggles at the bottom.
     const bottom = p.canvas.height - 100;

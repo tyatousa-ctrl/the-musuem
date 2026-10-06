@@ -1,7 +1,7 @@
 import {
   drainDaze, groundHeightAt, resolveHit, roomAt, type Hand, type MuseumMap, type Team, type Tunables,
 } from '@museum/shared';
-import { BreakableT, ObjectT, type PartyState, type PlayerT, PoseT } from '../state/schema.js';
+import { AgentT, BreakableT, ObjectT, type PartyState, type PlayerT, PoseT } from '../state/schema.js';
 import type { ModeContext, ServerMode } from '../modes/types.js';
 
 type V3 = [number, number, number];
@@ -17,12 +17,14 @@ export class Systems {
   readonly breakables: BreakableSystem;
   readonly combat: CombatSystem;
   readonly teams: TeamSystem;
+  readonly agents: AgentSystem;
 
   constructor(state: PartyState, map: MuseumMap, tunables: Tunables, ctx: () => ModeContext, mode: () => ServerMode | null) {
     this.objects = new ObjectSystem(state, map, tunables, ctx, mode);
     this.breakables = new BreakableSystem(state, tunables, ctx, mode);
     this.combat = new CombatSystem(state, tunables, ctx, mode, this.objects);
     this.teams = new TeamSystem(state);
+    this.agents = new AgentSystem(state);
   }
 
   tick(dtMs: number) {
@@ -32,6 +34,10 @@ export class Systems {
 }
 
 // ─── Grabbables ──────────────────────────────────────────────────────────────
+/** Height of an object's grab point above the floor when it rests (tall props are held by the top). */
+const REST_HEIGHT: Record<string, number> = { stanchion: 0.95, sign: 1.0 };
+const restHeight = (kind: string) => REST_HEIGHT[kind] ?? 0.12;
+
 export class ObjectSystem {
   /** Max distance from hand to object centre for a grab claim (lenient for latency). */
   static GRAB_REACH = 0.85;
@@ -120,7 +126,7 @@ export class ObjectSystem {
       if (!o) continue;
       this.clearHand(player.id, o.id);
       o.holder = ''; o.hand = '';
-      [o.x, o.y, o.z] = [at[0], at[1] + 0.15, at[2]];
+      [o.x, o.y, o.z] = [at[0], at[1] + Math.max(0.15, restHeight(o.kind)), at[2]];
       o.vx = o.vy = o.vz = 0;
       o.status = 'dropped';
       this.mode()?.onReleased?.(this.ctx(), player, o, false);
@@ -148,8 +154,9 @@ export class ObjectSystem {
         o.vx = -o.vx * 0.2; o.vz = -o.vz * 0.2;
       } else { o.x = nx; o.z = nz; }
       const ground = groundHeightAt(this.map, o.x, o.y, o.z);
-      if (ny <= ground + 0.12) {
-        o.y = ground + 0.12;
+      const rest = restHeight(o.kind);
+      if (ny <= ground + rest) {
+        o.y = ground + rest;
         o.vx = o.vy = o.vz = 0;
         o.status = o.kind === 'relic' ? 'dropped' : 'rest';
         this.mode()?.onLanded?.(this.ctx(), o);
@@ -264,6 +271,31 @@ export class CombatSystem {
     const mode = this.mode();
     ctx.teleport(p, mode ? mode.spawnFor(ctx, p) : ctx.map.spawns.lobby[0]);
   }
+}
+
+// ─── NPC agents ──────────────────────────────────────────────────────────────
+/**
+ * Synced NPCs (brief §17). Modes simulate their agents with the shared rules
+ * (shared/rules/agents.ts) and publish positions here at the agent tick rate;
+ * clients interpolate and draw them instanced.
+ */
+export class AgentSystem {
+  constructor(private state: PartyState) {}
+
+  /** Replace the synced set with `list` (adds, updates and removes). */
+  sync(list: { id: string; kind: number; mood: number; x: number; y: number; z: number; yaw: number }[]) {
+    const seen = new Set<string>();
+    for (const a of list) {
+      seen.add(a.id);
+      let s = this.state.agents.get(a.id);
+      if (!s) { s = new AgentT(); s.id = a.id; s.kind = a.kind; this.state.agents.set(a.id, s); }
+      s.mood = a.mood;
+      s.x = a.x; s.y = a.y; s.z = a.z; s.yaw = a.yaw;
+    }
+    for (const id of [...this.state.agents.keys()]) if (!seen.has(id)) this.state.agents.delete(id);
+  }
+
+  clear() { this.state.agents.clear(); }
 }
 
 // ─── Teams ───────────────────────────────────────────────────────────────────

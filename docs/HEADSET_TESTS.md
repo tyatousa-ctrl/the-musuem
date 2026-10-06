@@ -70,3 +70,12 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Sprint toggle.** Click the left stick while moving: you should speed up, stay sprinting while you keep moving, and stop sprinting when you let go. Click again to turn it off.
 - [ ] **Frame rate.** Look down the Dinosaur Hall and across the Great Hall from the balcony. Note any drops below 72 fps.
 
+## M7 — Crowd Control
+
+- [ ] **Readability.** Can you tell at a glance who is going the wrong way (red marker), who is heading into a closed area (amber), and who is filming (purple, blinking)? Are the floor arrows visible from standing height?
+- [ ] **Touching.** Reach out and tap a wrong-way tourist on the shoulder. They should huff, show a speech bubble and turn around. Does a light touch register, or do you have to swipe? Walking into someone should count too.
+- [ ] **Groups and guides.** Touch a group follower, then its leader (the one with the flag). Does the whole group follow the leader around?
+- [ ] **Stanchions.** Pick up a brass post by its top and carry it. Put two down about 2 m apart: a red rope should appear between them. Do tourists stop at it?
+- [ ] **Frame rate.** Stand in the Great Hall during wave 5 with 40 tourists around. Note any drops below 72 fps.
+- [ ] **Comfort.** Tourists pass through you. Does that feel OK, or is it unsettling up close?
+

@@ -366,8 +366,18 @@ const zones: Zone[] = [
   { id: 'captureA', kind: 'capture', room: 'northCourt', center: [-12, 0, -63], radius: 3 },
   { id: 'captureB', kind: 'capture', room: 'southCourt', center: [-12, 0, 63], radius: 3 },
   { id: 'exitAvenue', kind: 'exit', room: 'exterior', center: [46, -1.2, 0], radius: 6 },
-  { id: 'chokeDinoN', kind: 'choke', room: 'dinoHall', center: [-12, 0, -49], radius: 5 },
-  { id: 'chokeDinoS', kind: 'choke', room: 'dinoHall', center: [-12, 0, 49], radius: 5 },
+  // Crowd Control: doorways on the visitor circuit where crowds jam, and the areas closed to visitors.
+  { id: 'chokeArms', kind: 'choke', room: 'armsArmor', center: [12, 0, -20], radius: 2.5 },
+  { id: 'chokeDinoArms', kind: 'choke', room: 'dinoHall', center: [-2, 0, -30], radius: 2.5 },
+  { id: 'chokeSculpture', kind: 'choke', room: 'sculptureCourt', center: [-22, 0, -2], radius: 3 },
+  { id: 'chokeModern', kind: 'choke', room: 'modern', center: [-41, 0, 12], radius: 2.5 },
+  { id: 'chokeDinoModern', kind: 'choke', room: 'dinoHall', center: [-22, 0, 30], radius: 2.5 },
+  { id: 'chokeCultures', kind: 'choke', room: 'cultures', center: [-2, 0, 30], radius: 2.5 },
+  { id: 'chokeGreatHallS', kind: 'choke', room: 'greatHall', center: [12, 0, 20], radius: 2.5 },
+  { id: 'closedEgypt', kind: 'restricted', room: 'egyptS', center: [32, 0, -31], radius: 2.5 },
+  { id: 'closedStair', kind: 'restricted', room: 'grandStair', center: [9, 0, -9.5], radius: 2.5 },
+  { id: 'closedNorthCourt', kind: 'restricted', room: 'northCourt', center: [-12, 0, -55.5], radius: 2.5 },
+  { id: 'closedSouthCourt', kind: 'restricted', room: 'southCourt', center: [-41, 0, 55.5], radius: 2.5 },
   { id: 'restrictedService', kind: 'restricted', room: 'service', center: [24, -6, 0], radius: 30 },
   // Artifact Hunt: carry finds to the Registrar's Desk (the information desk) to secure them.
   { id: 'registrarDesk', kind: 'desk', room: 'greatHall', center: [25.5, 0, 0], radius: 4.5 },
@@ -389,8 +399,28 @@ const landmarks: MuseumMap['landmarks'] = [
   { id: 'desk', room: 'greatHall', pos: [30, 0, 0] },
 ];
 
+/**
+ * The one-way visitor circuit: in through the Great Hall, Arms and Armor, the
+ * Dinosaur Hall, the Sculpture Court, Modern, back across the Dinosaur Hall,
+ * through Africa/Oceania/Americas and out of the Great Hall's south door.
+ */
+const circuit: MuseumMap['circuit'] = {
+  points: [
+    [38.5, 0, 0], [30, 0, -14], [15.5, 0, -21], [12, 0, -20], [7.5, 0, -29], [-2, 0, -30],
+    [-6, 0, -20], [-17, 0, -12], [-22, 0, -2], [-38, 0, -2], [-41, 0, 12], [-35, 0, 20],
+    [-28, 0, 29], [-22, 0, 30], [-18, 0, 22], [-6, 0, 22], [-2, 0, 30], [1, 0, 27],
+    [1, 0, 22], [12, 0, 20], [30, 0, 14], [38.5, 0, 8],
+  ],
+  detours: [
+    { from: 1, zone: 'closedEgypt', label: 'the closed Egyptian wing', path: [[33, 0, -24], [33, 0, -28], [32, 0, -31]] },
+    { from: 2, zone: 'closedStair', label: 'the staff-only staircase', path: [[16, 0, -12], [13, 0, -7.5], [12, 0, -7], [9, 0, -9.5]] },
+    { from: 5, zone: 'closedNorthCourt', label: 'the closed Temple Court', path: [[-3.5, 0, -32], [-3.5, 0, -47], [-9, 0, -50], [-12, 0, -55.5]] },
+    { from: 11, zone: 'closedSouthCourt', label: 'the closed Glass Court', path: [[-34, 0, 40], [-41, 0, 48], [-41, 0, 50], [-41, 0, 55.5]] },
+  ],
+};
+
 export const museum: MuseumMap = {
-  rooms, portals, platforms, stairs, rails, blocks, doors, elevators, spawns, zones, slots, landmarks,
+  rooms, portals, platforms, stairs, rails, blocks, doors, elevators, spawns, zones, slots, landmarks, circuit,
   exteriorFence: { x0: 39, x1: 61, z0: -40, z1: 40 },
 };
 

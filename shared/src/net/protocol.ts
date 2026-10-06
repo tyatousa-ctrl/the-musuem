@@ -20,7 +20,7 @@ export interface ModeInfo {
 export const MODE_CATALOG: ModeInfo[] = [
   { id: 'ctr', name: 'Capture the Relic', pitch: 'Smash their case, steal their relic, carry it home.', players: '2–4 · teams', available: true },
   { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: true },
-  { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: false },
+  { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: true },
   { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '2–4 · FFA', available: false },
   { id: 'tour', name: 'Free Tour', pitch: 'A timed wander. Explore, practise, mess about.', players: '1–4', available: true },
 ];
@@ -47,6 +47,8 @@ export interface ClientMessages {
   hitBreakable: { id: string; hand: Hand; speed: number };
   hitPlayer: { targetId: string; hand: Hand; speed: number; dir: [number, number, number]; kind: 'shove' | 'bonk' };
   useDoor: { id: string };
+  /** Desktop "tap on the shoulder" for an NPC in reach (VR touches are detected from hand poses). */
+  touchAgent: { id: string };
   /** Ride an elevator to a floor (player must be standing in the cab). */
   elevator: { id: string; floor: number };
   selectMode: { mode: ModeId };
@@ -69,6 +71,8 @@ export interface ServerEvents {
   teleport: { pos: [number, number, number]; yaw: number; fade?: boolean; keepYaw?: boolean };
   scored: { team: Team; playerId: string; scoreA: number; scoreB: number };
   announcement: { text: string; tone: 'info' | 'good' | 'bad' | 'alert'; team?: Team };
+  /** Crowd Control moments, for sounds and pop-ups. */
+  crowd: { type: 'touched' | 'routed' | 'wrongExit' | 'breach' | 'filming'; effect?: string; pos: [number, number, number] };
   grabRejected: { objectId: string; hand: Hand };
   pong: { t: number; server: number };
 }

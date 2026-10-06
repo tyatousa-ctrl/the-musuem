@@ -209,6 +209,9 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       p.feetY = target.y;
       this.sendTo(p.id, 'teleport', { pos: [p.head.px, target.y, p.head.pz], yaw: 0, fade: true, keepYaw: true });
     });
+    this.on('touchAgent', (p, m) => {
+      if (this.state.phase === 'playing') this.mode?.onRequest?.(this.ctx, p, 'touchAgent', { id: String(m.id) });
+    });
     this.on('useDoor', (p, m) => {
       const door = this.state.doors.get(String(m.id));
       const def = museum.doors.find((d) => d.id === door?.id);
