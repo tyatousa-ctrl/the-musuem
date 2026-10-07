@@ -3,6 +3,9 @@ import type { Hand } from '@museum/shared';
 import type { NetState } from '../multiplayer/net';
 import type { Avatars } from '../multiplayer/avatars';
 import type { TrackedHand } from '../player/hands';
+import type { DynamicBox } from '../player/collision';
+import { DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, money } from '@museum/shared';
+import { SIZE, destructibleMesh, priceTag, rubbleMesh } from './destructibles';
 
 const tmp = new THREE.Vector3();
 
@@ -59,6 +62,8 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
     glow.name = 'glow';
     g.add(glow);
     g.scale.setScalar(1.4); // big enough to spot across a room
+  } else if (kind === 'tool') {
+    g.add(makeTool(variant));
   } else if (kind === 'stanchion') {
     // Brass queue post, held by its top: the origin is the grab point, the base sits 0.95 m below.
     const brass = new THREE.MeshLambertMaterial({ color: 0xc9a24f, emissive: 0x3a2a0a });
@@ -105,6 +110,42 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
   }
   return g;
 }
+
+/**
+ * Insurance Fraud tools. The origin is the grip; at rest they stand on the
+ * butt of the handle (0.45 m below the grip) with the head up. In the hand
+ * they point forward along the controller.
+ */
+function makeTool(variant: string): THREE.Object3D {
+  const g = new THREE.Group();
+  const m = (c: number, e = 0) => new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: e });
+  const wood = m(0x8a5a32), steel = m(0x9aa0a8, 0.1), red = m(0xc0302a, 0.15), gold = m(0xd9b23a, 0.25);
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z = 0, rz = 0) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.rotation.z = rz; g.add(o); return o; };
+  const handle = (top: number, mat: THREE.Material = wood, r = 0.022) => add(new THREE.CylinderGeometry(r, r, top + 0.45, 8), mat, 0, (top - 0.45) / 2);
+  switch (variant) {
+    case 'mallet': handle(0.25); add(new THREE.BoxGeometry(0.24, 0.13, 0.13), m(0x5a4030), 0, 0.3); break;
+    case 'crowbar': handle(0.42, red, 0.016); add(new THREE.TorusGeometry(0.06, 0.016, 6, 10, Math.PI), red, 0.06, 0.42); break;
+    case 'extinguisher':
+      add(new THREE.CylinderGeometry(0.08, 0.08, 0.42, 14), red, 0, -0.24);
+      add(new THREE.CylinderGeometry(0.03, 0.04, 0.08, 8), m(0x222222), 0, 0.0);
+      add(new THREE.BoxGeometry(0.12, 0.02, 0.03), m(0x222222), 0.04, 0.05);
+      break;
+    case 'mace':
+      handle(0.28, gold, 0.02);
+      add(new THREE.SphereGeometry(0.075, 12, 8), gold, 0, 0.34);
+      for (let i = 0; i < 6; i++) { const c = add(new THREE.ConeGeometry(0.02, 0.06, 5), gold, Math.cos(i) * 0.08, 0.34, Math.sin(i) * 0.08); c.lookAt(0, 0.34, 0); c.rotateX(-Math.PI / 2); }
+      break;
+    case 'axe': handle(0.45); add(new THREE.BoxGeometry(0.2, 0.15, 0.03), red, 0.09, 0.38); add(new THREE.BoxGeometry(0.03, 0.17, 0.035), steel, 0.2, 0.38); break;
+    case 'sledgehammer': handle(0.5, wood, 0.025); add(new THREE.BoxGeometry(0.3, 0.13, 0.13), steel, 0, 0.55); break;
+    case 'ball': g.add(new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), m(0x9a9282))); break;
+    default: handle(0.3);
+  }
+  return g;
+}
+
+/** Tools point forward from the hand: their +y head along the controller's -z. */
+const TOOL_GRIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+const tmpQ = new THREE.Quaternion();
 
 interface Entry { obj: THREE.Object3D; kind: string; team: string }
 
@@ -153,13 +194,20 @@ export class WorldObjects {
       if (pred && (o.holder === myId || performance.now() - pred.at > 1500)) this.predicted.delete(id);
       const mine = o.holder === myId || this.predicted.has(id);
       const hand: Hand | undefined = o.holder === myId ? o.hand : pred?.hand;
+      const pointed = e.kind === 'tool' && o.variant !== 'ball';
       if (mine && hand) {
         hands[hand].glove.getWorldPosition(tmp);
         e.obj.position.copy(tmp);
+        if (pointed) e.obj.quaternion.copy(hands[hand].glove.getWorldQuaternion(tmpQ)).multiply(TOOL_GRIP);
       } else if (o.status === 'carried' && o.holder) {
         const av = avatars.get(o.holder);
-        if (av) (o.hand === 'left' ? av.left : av.right).getWorldPosition(e.obj.position);
+        const h = av && (o.hand === 'left' ? av.left : av.right);
+        if (h) {
+          h.getWorldPosition(e.obj.position);
+          if (pointed) e.obj.quaternion.copy(h.getWorldQuaternion(tmpQ)).multiply(TOOL_GRIP);
+        }
       } else {
+        if (pointed) e.obj.quaternion.identity();
         // Smoothly chase the server position.
         tmp.set(o.x, o.y, o.z);
         if (e.obj.position.distanceTo(tmp) > 3) e.obj.position.copy(tmp);
@@ -179,11 +227,23 @@ export class WorldObjects {
   position(id: string, out: THREE.Vector3) { const e = this.entries.get(id); return e ? e.obj.getWorldPosition(out) : null; }
 }
 
-/** Display cases that crack and shatter (brief §20): stage meshes swap; shards are pooled. */
+interface Dest {
+  root: THREE.Group; mesh: THREE.Mesh; rubble: THREE.Mesh; tag: THREE.Sprite; tagKey: string;
+  stage: number; variant: string; center: THREE.Vector3; radius: number; height: number; box?: DynamicBox; wobble: number;
+}
+
+/**
+ * Everything breakable (brief §20): CTR's display cases crack and shatter;
+ * Insurance Fraud's destructibles tilt when damaged and collapse into rubble.
+ * Stage meshes swap and shards are pooled; no runtime fracturing.
+ */
 export class Breakables {
   readonly group = new THREE.Group();
+  /** Collision for big destructibles while they stand. */
+  readonly boxes: DynamicBox[] = [];
   private cases = new Map<string, { root: THREE.Group; glass: THREE.Mesh; cracks: THREE.Mesh; stage: number }>();
-  private shards: { m: THREE.Mesh; v: THREE.Vector3; life: number }[] = [];
+  private dests = new Map<string, Dest>();
+  private shards: { m: THREE.Mesh; v: THREE.Vector3; life: number; floor: number }[] = [];
   private glassMat = new THREE.MeshBasicMaterial({ color: 0xd8f0f8, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
   private crackTex: THREE.CanvasTexture;
 
@@ -207,14 +267,15 @@ export class Breakables {
       const m = new THREE.Mesh(shardGeo, shardMat);
       m.visible = false;
       this.group.add(m);
-      this.shards.push({ m, v: new THREE.Vector3(), life: 0 });
+      this.shards.push({ m, v: new THREE.Vector3(), life: 0, floor: 0 });
     }
   }
 
-  update(state: NetState, dt: number) {
+  update(state: NetState, dt: number, viewer?: THREE.Vector3) {
     const seen = new Set<string>();
     state?.breakables?.forEach((b: NetState, id: string) => {
       seen.add(id);
+      if (b.kind === 'destructible') { this.updateDest(id, b, dt); return; }
       let c = this.cases.get(id);
       if (!c) {
         const root = new THREE.Group();
@@ -237,21 +298,92 @@ export class Breakables {
       c.cracks.visible = b.stage === 1;
     });
     for (const [id, c] of this.cases) if (!seen.has(id)) { c.root.removeFromParent(); this.cases.delete(id); }
+    for (const [id, d] of this.dests) if (!seen.has(id)) {
+      d.root.removeFromParent(); d.tag.removeFromParent();
+      if (d.box) this.boxes.splice(this.boxes.indexOf(d.box), 1);
+      this.dests.delete(id);
+    }
+    if (viewer) this.updateTags(viewer);
     for (const s of this.shards) {
       if (s.life <= 0) continue;
       s.life -= dt;
       s.v.y -= 9.8 * dt;
       s.m.position.addScaledVector(s.v, dt);
-      if (s.m.position.y < 0.02) { s.m.position.y = 0.02; s.v.set(0, 0, 0); }
+      if (s.m.position.y < s.floor + 0.02) { s.m.position.y = s.floor + 0.02; s.v.set(0, 0, 0); }
       s.m.rotation.x += dt * 5;
       s.m.visible = s.life > 0;
     }
   }
 
-  private burst(at: THREE.Vector3) {
+  private updateDest(id: string, b: NetState, dt: number) {
+    let d = this.dests.get(id);
+    if (!d) {
+      const center = DESTRUCTIBLE_CENTER[b.variant] ?? 1;
+      const root = new THREE.Group();
+      root.position.set(b.x, b.y - center, b.z);
+      root.rotation.y = b.yaw;
+      const mesh = destructibleMesh(b.variant);
+      const rubble = rubbleMesh(b.variant);
+      rubble.visible = false;
+      root.add(mesh, rubble);
+      this.group.add(root);
+      const size = SIZE[b.variant] ?? SIZE.vase;
+      const tag = priceTag('', '');
+      tag.visible = false;
+      this.group.add(tag);
+      d = { root, mesh, rubble, tag, tagKey: '', stage: 0, variant: b.variant, center: new THREE.Vector3(b.x, b.y, b.z), radius: b.radius, height: size[2], wobble: 0 };
+      // Players bump into the big pieces (not vases on pedestals).
+      if (size[0] >= 0.3 || size[2] >= 1.8) {
+        const sideways = Math.abs(Math.sin(b.yaw)) > 0.7;
+        const hx = sideways ? size[1] : size[0], hz = sideways ? size[0] : size[1];
+        const fy = b.y - center;
+        d.box = { box: new THREE.Box3(new THREE.Vector3(b.x - hx, fy, b.z - hz), new THREE.Vector3(b.x + hx, fy + size[2], b.z + hz)), active: true };
+        this.boxes.push(d.box);
+      }
+      this.dests.set(id, d);
+    }
+    // Damage: a jolt and a lasting lean; destroyed: rubble and flying pieces.
+    if (b.stage !== d.stage || (b.stage === 1 && d.wobble <= 0 && b.hp !== d.mesh.userData.hp)) {
+      if (b.stage === 2 && d.stage < 2) this.burst(d.center, Math.min(60, 12 + d.height * 8), d.root.position.y);
+      d.wobble = 0.35;
+      d.stage = b.stage;
+    }
+    d.mesh.userData.hp = b.hp;
+    d.wobble = Math.max(0, d.wobble - dt);
+    const lean = b.stage === 1 ? (1 - b.hp / Math.max(1, b.maxHp)) * 0.12 : 0;
+    d.mesh.rotation.z = lean + Math.sin(d.wobble * 40) * d.wobble * 0.15;
+    d.mesh.visible = b.stage < 2;
+    d.rubble.visible = b.stage >= 2;
+    if (d.box) d.box.active = b.stage < 2;
+    // Tag text follows value and state.
+    const key = `${b.value}|${b.stage}|${b.locked}`;
+    if (key !== d.tagKey) {
+      d.tagKey = key;
+      const sub = b.variant === 'anchor' ? 'anchor: loosen me' : b.locked ? `${DESTRUCTIBLE_NAME[b.variant]} · anchored` : DESTRUCTIBLE_NAME[b.variant] ?? '';
+      const fresh = priceTag(b.variant === 'anchor' ? 'ANCHOR' : money(b.value), sub);
+      d.tag.material = fresh.material;
+      d.tag.position.set(b.x, b.y - (DESTRUCTIBLE_CENTER[b.variant] ?? 1) + d.height + (d.height > 3 ? 0.6 : 0.3), b.z);
+      if (d.height > 3) d.tag.scale.set(1.1, 0.48, 1); else d.tag.scale.set(0.55, 0.24, 1);
+    }
+  }
+
+  /** Price tags on the nearest few standing destructibles only (each tag is a draw call). */
+  private updateTags(viewer: THREE.Vector3) {
+    const near: { d: Dest; dist: number }[] = [];
+    for (const d of this.dests.values()) {
+      d.tag.visible = false;
+      if (d.stage >= 2) continue;
+      const dist = d.center.distanceTo(viewer);
+      if (dist < (d.height > 3 ? 14 : 8)) near.push({ d, dist });
+    }
+    near.sort((a, b) => a.dist - b.dist).slice(0, 6).forEach(({ d }) => (d.tag.visible = true));
+  }
+
+  private burst(at: THREE.Vector3, count = 30, floor = 0) {
     let n = 0;
     for (const s of this.shards) {
-      if (s.life > 0 || n++ > 30) continue;
+      if (s.life > 0 || n++ > count) continue;
+      s.floor = floor;
       s.m.position.set(at.x + (Math.random() - 0.5) * 0.7, at.y + (Math.random() - 0.5) * 0.8, at.z + (Math.random() - 0.5) * 0.7);
       s.v.set((Math.random() - 0.5) * 3, Math.random() * 2.5, (Math.random() - 0.5) * 3);
       s.life = 2.5 + Math.random();
@@ -259,8 +391,13 @@ export class Breakables {
     }
   }
 
-  /** Breakable whose glass volume contains (or nearly contains) a point. */
+  /** Breakable whose volume contains (or nearly contains) a point. */
   hitTest(p: THREE.Vector3, pad = 0.12): string | null {
+    for (const [id, d] of this.dests) {
+      if (d.stage >= 2) continue;
+      const floor = d.root.position.y;
+      if (Math.hypot(p.x - d.center.x, p.z - d.center.z) < Math.max(0.3, d.radius) + pad && p.y > floor - pad && p.y < floor + d.height + pad) return id;
+    }
     for (const [id, c] of this.cases) {
       if (c.stage >= 2) continue;
       const d = c.root.position;
@@ -280,8 +417,17 @@ export class Breakables {
       const off = tmp.addScaledVector(dir, -along).length();
       if (off < 0.6 && along < bestD) { bestD = along; best = id; }
     }
+    for (const [id, d] of this.dests) {
+      if (d.stage >= 2) continue;
+      tmp.subVectors(d.center, origin);
+      tmp.y *= 0.5; // be generous vertically: tall things are hit anywhere
+      const along = tmp.dot(dir);
+      if (along < 0 || along > range + d.radius) continue;
+      const off = tmp.addScaledVector(dir, -along).length();
+      if (off < Math.max(0.5, d.radius) && along < bestD + d.radius) { bestD = along; best = id; }
+    }
     return best;
   }
 
-  position(id: string) { return this.cases.get(id)?.root.position; }
+  position(id: string) { return this.cases.get(id)?.root.position ?? this.dests.get(id)?.center; }
 }

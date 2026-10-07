@@ -98,7 +98,7 @@ export class Game {
     this.scene.add(this.doors.group);
 
     this.player = new Player(this.camera, this.renderer, this.world.collider);
-    this.player.dynamicBoxes = this.doors.boxes;
+    this.player.dynamicBoxes = this.doors.boxes; // breakables add theirs each frame
     this.scene.add(this.player.rig);
     this.setupHands();
     this.menu = new PersonalMenu(this.audio, this.player, () => void this.leaveParty(), () => this.onMenuClosed());
@@ -262,11 +262,15 @@ export class Game {
 
     const me = this.net?.me();
     const ko = me?.status === 'ko';
-    this.player.setFade(ko ? 0.85 : 0);
-    this.player.frozen = ko ? 0.1 : this.player.frozen;
-    this.player.speedMul = this.carrying() ? tunables.ctr.carrierSpeedMul : 1;
+    const held = me?.status === 'held'; // caught by security (Insurance Fraud)
+    this.player.setFade(ko ? 0.85 : held ? 0.45 : 0);
+    this.player.frozen = ko || held ? 0.1 : this.player.frozen;
+    this.player.speedMul = this.carrying() ? tunables.ctr.carrierSpeedMul : this.holding('sledgehammer') ? tunables.insuranceFraud.sledgeSpeedMul : 1;
+    this.player.dynamicBoxes = this.breakables.boxes.length ? [...this.doors.boxes, ...this.breakables.boxes] : this.doors.boxes;
+    // Late joiners in a timed mode spectate with a free-fly camera on desktop (brief §12.3).
+    const spectating = me?.status === 'spectating';
 
-    if (this.spectate && !xr) this.flyCamera(dt, a);
+    if ((this.spectate || spectating) && !xr) this.flyCamera(dt, a);
     else this.player.update(dt, a, this.menu.open);
 
     this.updateHands(dt, a, xr);
@@ -276,7 +280,7 @@ export class Game {
     const state = this.net?.state;
     this.avatars.update(state, this.net?.playerId ?? '', dt);
     this.objects.update(state, this.net?.playerId ?? '', this.player.hands, this.avatars, dt);
-    this.breakables.update(state, dt);
+    this.breakables.update(state, dt, this.camera.getWorldPosition(this.viewPos));
     this.doors.update(state, dt);
     this.updatePhase(dt);
 
@@ -338,6 +342,14 @@ export class Game {
     }
   }
 
+  private viewPos = new THREE.Vector3();
+
+  /** Holding a tool of this variant in either hand. */
+  private holding(variant: string) {
+    const me = this.net?.me();
+    return !!me && [me.heldLeft, me.heldRight].some((id: string) => { const o = id && this.net!.state.objects.get(id); return !!o && o.kind === 'tool' && o.variant === variant; });
+  }
+
   private carrying() {
     const me = this.net?.me();
     return !!me && [me.heldLeft, me.heldRight].some((id: string) => id && this.net!.state.objects.get(id)?.kind === 'relic');
@@ -391,7 +403,7 @@ export class Game {
     if (a.useRightPressed) {
       const right = this.player.hands.right;
       this.punchAnim = 1;
-      const caseId = this.breakables.inFront(head, tmpDir, 2.0);
+      const caseId = this.breakables.inFront(head, tmpDir, this.player.hands.right.heldId ? 2.4 : 2.0);
       const target = this.playerInFront(head, tmpDir, 1.5);
       const agent = !caseId && !target ? this.agentInFront(head, tmpDir, 1.8) : null;
       if (agent) {
@@ -459,7 +471,9 @@ export class Game {
   private physicalHit(h: Hand, speed: number) {
     const net = this.net!;
     const hand = this.player.hands[h];
-    const caseId = this.breakables.hitTest(hand.pos);
+    // A held tool reaches past the hand: test its head too.
+    const toolHead = hand.heldId ? tmpB.set(0, 0, -0.4).applyQuaternion(hand.quat).add(hand.pos) : null;
+    const caseId = this.breakables.hitTest(hand.pos) ?? (toolHead && this.breakables.hitTest(toolHead, 0.2));
     if (caseId && speed >= tunables.combat.punchGlassSpeed * (hand.heldId ? 0.7 : 1)) {
       net.send('hitBreakable', { id: caseId, hand: h, speed });
       this.audio.play('thud', hand.pos);

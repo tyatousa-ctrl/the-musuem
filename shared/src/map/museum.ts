@@ -428,7 +428,7 @@ slots.push(
   // Ultra-high-value pieces, each held by three anchors that must be loosened first.
   D('mammoth', 'dinoHall', 'mammoth', -12, 0, 42),
   D('mammothA1', 'dinoHall', 'anchor', -15, 0, 38, 0, 'mammoth'), D('mammothA2', 'dinoHall', 'anchor', -8.5, 0, 38.5, 0, 'mammoth'), D('mammothA3', 'dinoHall', 'anchor', -12, 0, 47.5, 0, 'mammoth'),
-  D('giantCanvas', 'sculptureCourt', 'canvas', -55, 0, 0, -PI / 2),
+  D('giantCanvas', 'sculptureCourt', 'canvas', -55, 0, 0, PI / 2),
   D('canvasA1', 'sculptureCourt', 'anchor', -53, 0, -4.5, 0, 'giantCanvas'), D('canvasA2', 'sculptureCourt', 'anchor', -53, 0, 4.5, 0, 'giantCanvas'), D('canvasA3', 'sculptureCourt', 'anchor', -58.5, 0, 0, 0, 'giantCanvas'),
   D('lionGate', 'southCourt', 'gate', 30, 0, 68),
   D('gateA1', 'southCourt', 'anchor', 27, 0, 64, 0, 'lionGate'), D('gateA2', 'southCourt', 'anchor', 33, 0, 64, 0, 'lionGate'), D('gateA3', 'southCourt', 'anchor', 30, 0, 73.5, 0, 'lionGate'),

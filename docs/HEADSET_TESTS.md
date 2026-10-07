@@ -79,3 +79,13 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Frame rate.** Stand in the Great Hall during wave 5 with 40 tourists around. Note any drops below 72 fps.
 - [ ] **Comfort.** Tourists pass through you. Does that feel OK, or is it unsettling up close?
 
+## M8 — Insurance Fraud
+
+- [ ] **Tools in hand.** Grab the mallet, the fire axe and the sledgehammer by the handle. Do they point the right way out of your hand? Does swinging feel right, and is the sledgehammer's slowness fair?
+- [ ] **Hitting.** Smash a vase with your fist, then a bust with the mallet. Is the hit threshold forgiving enough for a tool swing? Do the price tags read at arm's length?
+- [ ] **The big pieces.** Loosen the three anchors on the Mammoth (a crowbar is fastest), then bring it down with a heavy tool. Does it feel like an event?
+- [ ] **Security.** Watch your stars on the wrist. At level 2, do others see your beacon? At level 4, a guard comes: can you outrun it, and can you lose it by going upstairs?
+- [ ] **Caught.** Being held in the basement security office: is 8 s plus the walk back fair, or punishing?
+- [ ] **Throwing the stone ball.** Throw it at a statue. Does it register?
+- [ ] **Frame rate.** Stand in the Dinosaur Hall near the Mammoth with price tags showing. Note any drops below 72 fps.
+

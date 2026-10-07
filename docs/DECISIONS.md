@@ -74,3 +74,15 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 
 **The client relays every server event.** `Net` used a hand-kept list of event names, so the new `crowd` event was silently dropped. It now relays every key of `ServerEvents`, and the list is checked by the type system.
 
+**Insurance Fraud values are in thousands of dollars.** Scores fit the existing 16-bit score field, and the economy reads naturally ("$26,000"). Regular objects pay out as you damage them, in proportion to the hit points you take off. This means whoever lands the last hit can't steal a nearly broken object. Ultra-high-value pieces pay only when the final step lands, split 60/40 as the brief says.
+
+**Balancing the economy.** In the first simulation, greedy-highest-value won by 1.7×. Three changes fixed it. The ultra pieces are worth less relative to everything else ($300k–$400k against about $1.9M of regular objects). They take many hits from slow heavy tools. And loosening each anchor is loud (120k of security heat), so you reach level 4 and the guards come before the final step pays out. Greedy now scores less than half of a "grab a heavy tool, then best value per second" strategy, at three different player speeds. The simulation is deliberately crude: straight-line travel, no other players. Playtesting should retune the numbers in `tunables.ts`, and the test keeps any retune honest.
+
+**Guards walk a navigation grid.** Following portals plus sliding along walls got guards stuck on exhibits such as the T. rex plinth. Ground-floor navigation now builds a 0.5 m walkability grid once per round (about 160 ms), runs A* on it (about 10 ms per route), and shortcuts the path into straight legs. Guards replan once a second. Tourists still use their fixed circuit. Guards stay on the ground floor: a wanted player upstairs is safe, which is the "lie low" escape. Most valuable things are on the ground floor for that reason.
+
+**A guard keeps chasing until you've really lain low.** Guards are sent at level 4, but they stop chasing only when you drop to level 2 or below. Without that gap, heat ticking back down past 4 called the guard off before it could arrive.
+
+**Caught means held, not knocked out.** A caught player drops what they're holding where they stand. They are teleported to the security office in the basement, frozen for 8 s with a dimmed view, and then released there. The walk back up is most of the time cost. Their security level resets to zero.
+
+**Tools.** A held tool points along the controller. The stone ball damages whatever it lands on when thrown. The sledgehammer is "two-handed" in the sense that carrying it slows you to 0.75×; you don't have to grip it with both hands. Each tool type also has a swing speed, enforced on the server, so the sledgehammer can't be swung like a mallet. The rolling cart from the brief is not built; the stone ball covers "rolling object". "Doors near you close" at level 3 is not built either, since the museum has no fire doors yet. The alarm covers level 3.
+

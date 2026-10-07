@@ -5,6 +5,7 @@ import type { AudioEngine } from '../audio/audio';
 import type { WorldObjects } from '../interaction/objects';
 import { fmtTime } from '../ui/menus';
 import { crowdControl } from './crowd';
+import { insuranceFraud } from './fraud';
 
 /** What a client mode can touch (brief §14). */
 export interface ClientModeCtx {
@@ -28,7 +29,7 @@ export interface ClientMode {
 const TEAM = { A: 'Falcons', B: 'Masks' } as const;
 const tmp = new THREE.Vector3();
 
-function timer(ctx: ClientModeCtx) {
+export function timer(ctx: ClientModeCtx) {
   const s = ctx.net.state;
   if (!s) return '';
   if (s.phase === 'countdown') return `Starting in ${fmtTime(s.phaseEndsAt - ctx.net.serverNow())}`;
@@ -133,7 +134,7 @@ const artifactHunt: ClientMode = {
 };
 
 /** Client mode registry; one line per mode. */
-export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, crowdControl, tour };
+export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, crowdControl, insuranceFraud, tour };
 
 export function lobbyHud(ctx: ClientModeCtx): string[] {
   const s = ctx.net.state;

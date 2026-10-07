@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { MOODS, TOURIST_KINDS, museum, ropeSegments, tunables, type ServerEvents } from '@museum/shared';
+import { AGENT_KINDS, MOODS, museum, ropeSegments, tunables, type ServerEvents } from '@museum/shared';
 import type { NetState } from '../multiplayer/net';
 import type { ClientMode, ClientModeCtx } from './index';
 
@@ -12,7 +12,7 @@ import type { ClientMode, ClientModeCtx } from './index';
  */
 const MAX = 64;
 const MOOD_COLOR: Partial<Record<(typeof MOODS)[number], number>> = {
-  wrong: 0xe0402a, offRoute: 0xf0a020, filming: 0xb060ff, huffy: 0xffffff, waiting: 0x60a0ff,
+  alert: 0xff2a1a, wrong: 0xe0402a, offRoute: 0xf0a020, filming: 0xb060ff, huffy: 0xffffff, waiting: 0x60a0ff,
 };
 const SHIRTS = [0x3b6fb6, 0xc8553d, 0x4f9d69, 0xe0b440, 0x8a5fb0, 0x2f8f9d, 0xd9d4c7, 0x6b6b6b, 0xb04a7a, 0x5a7d2a];
 const PANTS = [0x2b2f3a, 0x4a3b2a, 0x1f3550, 0x6b6250, 0x333333];
@@ -23,7 +23,8 @@ const hash = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; 
 
 interface Shown { x: number; z: number; yaw: number; phase: number; hop: number; seen: boolean; slot: number }
 
-class Crowd {
+/** Instanced NPCs: Crowd Control's tourists and Insurance Fraud's guards. */
+export class Crowd {
   readonly group = new THREE.Group();
   private legs: THREE.InstancedMesh;
   private torso: THREE.InstancedMesh;
@@ -85,7 +86,7 @@ class Crowd {
         if (slot === undefined) return;
         v = { x: a.x, z: a.z, yaw: a.yaw, phase: 0, hop: 0, seen: true, slot };
         this.shown.set(id, v);
-        this.paint(id, slot, TOURIST_KINDS[a.kind] ?? 'normal');
+        this.paint(id, slot, AGENT_KINDS[a.kind] ?? 'normal');
       }
       v.seen = true;
       const ox = v.x, oz = v.z;
@@ -96,7 +97,7 @@ class Crowd {
       v.yaw += dy * Math.min(1, dt * 8);
       v.phase += Math.hypot(v.x - ox, v.z - oz) * 7.5;
       const mood = MOODS[a.mood] ?? 'ok';
-      const kind = TOURIST_KINDS[a.kind] ?? 'normal';
+      const kind = AGENT_KINDS[a.kind] ?? 'normal';
       v.hop = mood === 'huffy' ? Math.min(1, v.hop + dt * 6) : Math.max(0, v.hop - dt * 3);
       const bob = Math.abs(Math.sin(v.phase)) * 0.05 + v.hop * Math.abs(Math.sin(this.t * 13)) * 0.12;
       const sway = Math.sin(v.phase) * 0.06 + v.hop * Math.sin(this.t * 17) * 0.25;
@@ -138,11 +139,11 @@ class Crowd {
   /** Clothes, skin and accessories for a newly arrived tourist. */
   private paint(id: string, slot: number, kind: string) {
     const h = hash(id);
-    const shirt = kind === 'stubborn' ? 0x4a4a4a : kind === 'influencer' ? 0xff6fb5 : kind === 'guide' ? 0xf2c14e : SHIRTS[h % SHIRTS.length];
+    const shirt = kind === 'guard' ? 0x1d2a50 : kind === 'stubborn' ? 0x4a4a4a : kind === 'influencer' ? 0xff6fb5 : kind === 'guide' ? 0xf2c14e : SHIRTS[h % SHIRTS.length];
     this.torso.setColorAt(slot, this.c.set(shirt));
-    this.legs.setColorAt(slot, this.c.set(PANTS[(h >>> 4) % PANTS.length]));
+    this.legs.setColorAt(slot, this.c.set(kind === 'guard' ? 0x141a2e : PANTS[(h >>> 4) % PANTS.length]));
     this.head.setColorAt(slot, this.c.set(SKIN[(h >>> 8) % SKIN.length]));
-    this.hair.setColorAt(slot, this.c.set(HAIR[(h >>> 12) % HAIR.length]));
+    this.hair.setColorAt(slot, this.c.set(kind === 'guard' ? 0x101626 : HAIR[(h >>> 12) % HAIR.length])); // guards wear a peaked cap
     this.flag.setColorAt(slot, this.c.set(kind === 'guide' ? 0xf2c14e : 0x3b8fe0));
     this.held.setColorAt(slot, this.c.set(kind === 'lost' ? 0xf3ead9 : 0x222222));
   }
@@ -151,7 +152,7 @@ class Crowd {
 }
 
 /** A text sprite on a rounded card. */
-function label(text: string, opts: { bg: string; fg: string; w?: number; h?: number; font?: string; scale?: number }): THREE.Sprite {
+export function label(text: string, opts: { bg: string; fg: string; w?: number; h?: number; font?: string; scale?: number }): THREE.Sprite {
   const w = opts.w ?? 512, h = opts.h ?? 128;
   const c = document.createElement('canvas');
   c.width = w; c.height = h;

@@ -133,7 +133,8 @@ export function createFraudMode(): ServerMode {
     }
     for (const g of guards) {
       const p = g.target ? ctx.player(g.target) : undefined;
-      if (g.target && (!p || p.status !== 'active' || p.wanted < 4)) g.target = '';
+      // A guard on your tail keeps coming until you have really lain low (level 2 or less).
+      if (g.target && (!p || p.status !== 'active' || p.wanted < 3)) g.target = '';
       let goal: [number, number] = GUARD_POST;
       if (p && g.target) goal = [p.head.px, p.head.pz];
       if (now >= g.routeAt) { g.route = routeOnFloor(nav, g.x, g.z, goal[0], goal[1]); g.routeAt = now + 1000; }

@@ -130,7 +130,7 @@ Not verified in headset.
 
 Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded voice lines.
 
-### M8 — Insurance Fraud: in progress (server and rules done; client not yet)
+### M8 — Insurance Fraud: done (not verified in headset)
 
 | Item | Status |
 |---|---|
@@ -141,9 +141,12 @@ Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded v
 | Security Level 0–5 from recent damage, decaying when you lie low; level 2 reveals you, 3 sounds alarms, 4–5 send guards (shared agent system, grid A* routing) who catch you and hold you in the security office | unit, bot |
 | Economy simulation: greedy-highest-value does not beat the other strategies (it loses clearly) | unit |
 | Join-in-progress: spectate until the next round | bot |
-| Client: destructible models, value tags, tool models, guards, wanted beacons, payout pop-ups, spectator view | not started |
-
-The mode stays hidden on the lobby totem until the client is done.
+| Client: one-draw-call models for every destructible (vases to the Mammoth skeleton), price tags on the nearest six, lean-on-damage and rubble, collision for big pieces | browser (`tools/smoke/fraud-desktop.ts`) |
+| Tools: models that point forward from the hand, labels on nearby racks, sledgehammer slows you | browser |
+| Guards (shared NPC renderer), beacons with stars over wanted players, "+$26,000" pop-ups, smash sounds, HUD with bill, rank, Security Level and tool | browser |
+| Full loop on desktop controls: bare-hand vase, mallet bust, Security Level 4, guard chases and catches, held in the security office | browser |
+| Spectators: free-fly camera on desktop and a live scoreboard on the HUD | not verified in a browser |
+| Budget: 57 draw calls in the Great Hall mid-round | browser |
 
 ## Known gaps and issues
 

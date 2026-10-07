@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MODE_CATALOG, type ModeId } from '@museum/shared';
+import { MODE_CATALOG, tunables, type ModeId } from '@museum/shared';
 import { Panel } from './panel';
 import type { Net, NetState } from '../multiplayer/net';
 import type { AudioEngine } from '../audio/audio';
@@ -176,6 +176,11 @@ export class LobbyTotem {
       p.text(`Play as: ${s.huntTeams ? 'Teams' : 'Free-for-all'}`, 50, y + 38, 28, CREAM);
       p.button('huntTeams', s.huntTeams ? 'Switch to FFA' : 'Switch to teams', W - 320, y, 280, 54, { small: true, enabled: host, onClick: () => this.net.send('setSetting', { key: 'huntTeams', value: !s.huntTeams }) });
       y += 66;
+    }
+    if (s.mode === 'insuranceFraud') {
+      p.text(`${tunables.insuranceFraud.timeLimitSec / 60}-minute round. Biggest insurance bill wins.`, 50, y + 38, 28, CREAM);
+      p.text('Grab tools, smash insured objects, dodge security.', 50, y + 76, 24, DIM);
+      y += 100;
     }
     if (s.mode === 'crowdControl') {
       p.text('Five waves of tourists, no time limit.', 50, y + 38, 28, CREAM);
