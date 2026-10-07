@@ -16,7 +16,7 @@ export type NetState = any;
 /** Every server event the client relays to listeners (a missing key is a type error). */
 const RELAYED: Record<Exclude<keyof ServerEvents, 'pong'>, true> = {
   glassCracked: true, glassShattered: true, alarm: true, ko: true, hit: true, knockback: true,
-  teleport: true, scored: true, announcement: true, grabRejected: true, crowd: true,
+  teleport: true, scored: true, announcement: true, grabRejected: true, crowd: true, smash: true, payout: true,
 };
 
 export class Net {

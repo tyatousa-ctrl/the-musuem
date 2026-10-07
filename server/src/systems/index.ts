@@ -35,8 +35,8 @@ export class Systems {
 
 // ─── Grabbables ──────────────────────────────────────────────────────────────
 /** Height of an object's grab point above the floor when it rests (tall props are held by the top). */
-const REST_HEIGHT: Record<string, number> = { stanchion: 0.95, sign: 1.0 };
-const restHeight = (kind: string) => REST_HEIGHT[kind] ?? 0.12;
+const REST_HEIGHT: Record<string, number> = { stanchion: 0.95, sign: 1.0, tool: 0.45, 'tool:ball': 0.25 };
+const restHeight = (kind: string, variant = '') => REST_HEIGHT[`${kind}:${variant}`] ?? REST_HEIGHT[kind] ?? 0.12;
 
 export class ObjectSystem {
   /** Max distance from hand to object centre for a grab claim (lenient for latency). */
@@ -126,7 +126,7 @@ export class ObjectSystem {
       if (!o) continue;
       this.clearHand(player.id, o.id);
       o.holder = ''; o.hand = '';
-      [o.x, o.y, o.z] = [at[0], at[1] + Math.max(0.15, restHeight(o.kind)), at[2]];
+      [o.x, o.y, o.z] = [at[0], at[1] + Math.max(0.15, restHeight(o.kind, o.variant)), at[2]];
       o.vx = o.vy = o.vz = 0;
       o.status = 'dropped';
       this.mode()?.onReleased?.(this.ctx(), player, o, false);
@@ -154,7 +154,7 @@ export class ObjectSystem {
         o.vx = -o.vx * 0.2; o.vz = -o.vz * 0.2;
       } else { o.x = nx; o.z = nz; }
       const ground = groundHeightAt(this.map, o.x, o.y, o.z);
-      const rest = restHeight(o.kind);
+      const rest = restHeight(o.kind, o.variant);
       if (ny <= ground + rest) {
         o.y = ground + rest;
         o.vx = o.vy = o.vz = 0;
@@ -166,14 +166,26 @@ export class ObjectSystem {
 }
 
 // ─── Breakables ──────────────────────────────────────────────────────────────
+export interface BreakableOpts {
+  hp?: number; variant?: string; value?: number; tool?: string; radius?: number; yaw?: number; parent?: string; locked?: boolean;
+}
+
+/**
+ * One registry for everything that breaks (brief §20): CTR's glass cases and
+ * Insurance Fraud's destructibles are the same system with different data.
+ * Modes decide how much a hit does (breakableDamage) and what it is worth.
+ */
 export class BreakableSystem {
   private lastHit = new Map<string, number>();
 
   constructor(private state: PartyState, private tunables: Tunables, private ctx: () => ModeContext, private mode: () => ServerMode | null) {}
 
-  add(id: string, kind: string, pos: V3, team: Team = '') {
+  add(id: string, kind: string, pos: V3, team: Team = '', o: BreakableOpts = {}) {
     const b = new BreakableT();
     b.id = id; b.kind = kind; b.team = team;
+    b.hp = b.maxHp = o.hp ?? this.tunables.combat.glassHitsToShatter;
+    b.variant = o.variant ?? ''; b.value = o.value ?? 0; b.tool = o.tool ?? '';
+    b.radius = o.radius ?? 0; b.yaw = o.yaw ?? 0; b.parent = o.parent ?? ''; b.locked = !!o.locked;
     [b.x, b.y, b.z] = pos;
     this.state.breakables.set(id, b);
     return b;
@@ -181,10 +193,14 @@ export class BreakableSystem {
 
   reset(id: string) {
     const b = this.state.breakables.get(id);
-    if (b) { b.stage = 0; b.hits = 0; }
+    if (b) { b.stage = 0; b.hits = 0; b.hp = b.maxHp; }
   }
 
   removeAll() { this.state.breakables.clear(); }
+
+  removeKind(kind: string) {
+    for (const [id, b] of [...this.state.breakables.entries()]) if (b.kind === kind) this.state.breakables.delete(id);
+  }
 
   /** A hit claim from a client. Validated against position, speed, cooldown and mode. */
   hit(player: PlayerT, id: string, hand: Hand, speed: number): boolean {
@@ -192,23 +208,39 @@ export class BreakableSystem {
     if (!b || b.stage >= 2 || player.status !== 'active') return false;
     const now = Date.now();
     if (now - (this.lastHit.get(player.id) ?? 0) < 300) return false;
-    if (dist(poseVec(handPose(player, hand)), [b.x, b.y, b.z]) > 1.1) return false;
     const holding = (hand === 'left' ? player.heldLeft : player.heldRight) !== '';
+    if (dist(poseVec(handPose(player, hand)), [b.x, b.y, b.z]) > b.radius + 1.1 + (holding ? 0.6 : 0)) return false;
     if (speed < (holding ? this.tunables.combat.punchGlassSpeed * 0.7 : this.tunables.combat.punchGlassSpeed)) return false;
     const ctx = this.ctx();
-    if (this.mode()?.onBreakableHit && !this.mode()!.onBreakableHit!(ctx, player, id)) return false;
+    const mode = this.mode();
+    let damage = 1;
+    if (mode?.breakableDamage) damage = mode.breakableDamage(ctx, player, b, hand);
+    else if (mode?.onBreakableHit && !mode.onBreakableHit(ctx, player, id)) damage = 0;
+    if (damage <= 0) return false;
     this.lastHit.set(player.id, now);
-
-    b.hits += 1;
-    b.stage = b.hits >= this.tunables.combat.glassHitsToShatter ? 2 : 1;
-    const pos: V3 = [b.x, b.y, b.z];
-    if (b.stage === 1) ctx.broadcast('glassCracked', { id, pos });
-    else {
-      ctx.broadcast('glassShattered', { id, pos });
-      ctx.broadcast('alarm', { id, pos, team: b.team as Team });
-    }
-    this.mode()?.onBreakableStage?.(ctx, player, id, b.stage);
+    this.damage(id, damage, player);
     return true;
+  }
+
+  /** Apply damage (from a validated hit, or a server-side impact such as a thrown ball). */
+  damage(id: string, amount: number, by: PlayerT) {
+    const b = this.state.breakables.get(id);
+    if (!b || b.stage >= 2) return;
+    const before = b.hp;
+    b.hits = Math.min(255, b.hits + 1);
+    b.hp = Math.max(0, b.hp - amount);
+    b.stage = b.hp <= 0 ? 2 : 1;
+    const ctx = this.ctx();
+    const pos: V3 = [b.x, b.y, b.z];
+    if (b.kind === 'case') {
+      if (b.stage === 1) ctx.broadcast('glassCracked', { id, pos });
+      else {
+        ctx.broadcast('glassShattered', { id, pos });
+        ctx.broadcast('alarm', { id, pos, team: b.team as Team });
+      }
+    } else ctx.broadcast('smash', { id, pos, stage: b.stage, variant: b.variant });
+    this.mode()?.onBreakableDamaged?.(ctx, by, b, before - b.hp);
+    this.mode()?.onBreakableStage?.(ctx, by, id, b.stage);
   }
 }
 

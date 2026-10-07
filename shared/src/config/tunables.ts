@@ -142,7 +142,65 @@ export const tunables = {
     /** Score per visitor needed for 1, 2 and 3 stars. */
     starThresholds: [0.4, 0.65, 0.85],
   },
-  insuranceFraud: { timeLimitSec: 5 * 60, securityHoldSec: 8, ultraFinalShare: 0.6 },
+  insuranceFraud: {
+    timeLimitSec: 5 * 60,
+    /** Seconds held in the security office when caught. */
+    securityHoldSec: 8,
+    /** Share of an ultra-high-value object's value to whoever lands the final step; the rest is split by steps done. */
+    ultraFinalShare: 0.6,
+    /**
+     * Destructibles, values in thousands of dollars. hp is in hits of damage 1;
+     * tool is the least you need: 'hands', any 'tool', or a 'heavy' tool.
+     * radius is the reach target around the object's centre, m.
+     */
+    catalogue: {
+      vase: { value: 4, hp: 1, tool: 'hands', radius: 0.35 },
+      urn: { value: 9, hp: 2, tool: 'hands', radius: 0.4 },
+      amphora: { value: 18, hp: 2, tool: 'tool', radius: 0.4 },
+      bust: { value: 26, hp: 3, tool: 'tool', radius: 0.4 },
+      clock: { value: 45, hp: 4, tool: 'tool', radius: 0.5 },
+      painting: { value: 70, hp: 5, tool: 'tool', radius: 0.8 },
+      statue: { value: 110, hp: 9, tool: 'heavy', radius: 0.6 },
+      masterpiece: { value: 160, hp: 8, tool: 'tool', radius: 0.9 },
+      anchor: { value: 0, hp: 4, tool: 'tool', radius: 0.35 },
+      canvas: { value: 300, hp: 18, tool: 'heavy', radius: 2.2 },
+      gate: { value: 340, hp: 20, tool: 'heavy', radius: 2.2 },
+      mammoth: { value: 400, hp: 24, tool: 'heavy', radius: 2.2 },
+    } as Record<string, { value: number; hp: number; tool: 'hands' | 'tool' | 'heavy'; radius: number }>,
+    /** Tools: damage per good hit, hits before it breaks, and the fastest it can swing (s). Crowbars pry anchors twice as fast. */
+    tools: {
+      mallet: { cls: 'tool', damage: 1, durability: 12, swingSec: 0.5 },
+      crowbar: { cls: 'tool', damage: 1.2, durability: 10, swingSec: 0.6 },
+      extinguisher: { cls: 'tool', damage: 1.3, durability: 8, swingSec: 0.6 },
+      mace: { cls: 'tool', damage: 1.5, durability: 8, swingSec: 0.6 },
+      axe: { cls: 'heavy', damage: 2.2, durability: 8, swingSec: 0.9 },
+      sledgehammer: { cls: 'heavy', damage: 3, durability: 7, swingSec: 1.2 },
+      ball: { cls: 'heavy', damage: 2.5, durability: 6, swingSec: 1.5 },
+    } as Record<string, { cls: 'tool' | 'heavy'; damage: number; durability: number; swingSec: number }>,
+    /** Fastest bare-hand hit rate, s. */
+    handSwingSec: 0.45,
+    /** Loosening an anchor is loud: security heat per anchor. */
+    anchorHeat: 120,
+    /** Damage from a bare hand (only 'hands' objects). */
+    handDamage: 1,
+    /** Carrying the two-handed sledgehammer slows you to this. */
+    sledgeSpeedMul: 0.75,
+    /** Seconds before a broken or lost tool reappears on its rack; each rack restocks this many times. */
+    toolRespawnSec: 30,
+    toolRestocks: 1,
+    /** Security heat (thousands of dollars of recent damage) needed for levels 1–5. */
+    heatLevels: [30, 90, 200, 360, 560],
+    /** Heat lost per second once you have lain low for lieLowSec. */
+    heatDecayPerSec: 18,
+    lieLowSec: 6,
+    /** Level 2+: everyone sees where you are. Level 3+: an alarm sounds at you this often, s. */
+    alarmEverySec: 10,
+    /** Level 4+: guards pursue (speed at level 4 and 5, m/s). */
+    guardSpeed: 3.1,
+    guardSpeedMax: 3.7,
+    maxGuards: 3,
+    catchRadius: 1.0,
+  },
 } as const;
 
 type Widen<T> = T extends number ? number : T extends boolean ? boolean : { -readonly [K in keyof T]: Widen<T[K]> };

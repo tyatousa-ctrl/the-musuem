@@ -224,8 +224,9 @@ export class PartyRoom extends Room<{ state: PartyState }> {
     // Host-only party controls (enforced here, not in the UI).
     this.on('selectMode', (p, m) => {
       if (!this.isHost(p) || this.state.phase !== 'lobby') return;
+      // Any mode with a server implementation; the totem only offers the ones marked available.
       const info = MODE_CATALOG.find((x) => x.id === m.mode);
-      if (info?.available && MODE_FACTORIES[info.id]) this.state.mode = info.id;
+      if (info && MODE_FACTORIES[info.id]) this.state.mode = info.id;
     });
     this.on('setSetting', (p, m) => {
       if (!this.isHost(p) || this.state.phase !== 'lobby') return;

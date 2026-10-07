@@ -9,3 +9,4 @@ export * from './rules/combat.js';
 export * from './rules/hunt.js';
 export * from './rules/agents.js';
 export * from './rules/crowd.js';
+export * from './rules/fraud.js';

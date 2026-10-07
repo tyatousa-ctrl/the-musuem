@@ -23,6 +23,8 @@ process.env.MUSEUM_TUNABLES = JSON.stringify({
   net: { maxPoseSpeed: 10000, reconnectWindowSec: 5 },
   // Crowd Control: quick arrivals, and everyone starts out going the wrong way.
   crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
+  // Insurance Fraud: guards come after the first bit of damage.
+  insuranceFraud: { heatLevels: [1, 2, 3, 4, 500] },
 });
 
 const PORT = 25670 + Math.floor(Math.random() * 300);
@@ -307,6 +309,65 @@ describe('Crowd Control, scripted', () => {
     st(a).objects.forEach((o: any) => { if (o.kind === 'stanchion' || o.kind === 'sign') left++; });
     expect(left).toBe(0);
     await Promise.all([a.leave(), b.leave()]);
+  });
+});
+
+describe('Insurance Fraud, scripted', () => {
+  it('tools gate damage, damage pays its insured value, guards catch you, late joiners spectate', async () => {
+    const a = await join('fraud-party-113', 'f1');
+    a.send('selectMode', { mode: 'insuranceFraud' });
+    await waitFor(() => st(a).mode === 'insuranceFraud', 2000, 'mode');
+    a.send('startRound', {});
+    await waitFor(() => st(a).phase === 'playing', 3000, 'playing');
+    const b = (id: string) => st(a).breakables.get(id);
+    expect(b('mammoth').locked).toBe(true);
+    const hit = async (id: string) => {
+      const t = b(id);
+      pose(a, t.x + 0.5, t.y - 1.2, t.z, [t.x, t.y, t.z]);
+      await sleep(120);
+      a.send('hitBreakable', { id, hand: 'right', speed: 4 });
+      await sleep(450);
+    };
+
+    // The anchored mammoth and a bronze statue shrug off bare hands.
+    await hit('mammoth');
+    await hit('grStatueW');
+    expect(b('mammoth').hp).toBe(b('mammoth').maxHp);
+    expect(b('grStatueW').hp).toBe(b('grStatueW').maxHp);
+    expect(st(a).players.get('f1').score).toBe(0);
+
+    // Pick up a mallet and smash a marble bust: three hits, $26,000.
+    const mallet = st(a).objects.get('toolMalletA');
+    pose(a, mallet.x + 0.4, 0, mallet.z, [mallet.x, mallet.y, mallet.z]);
+    await sleep(100);
+    a.send('grab', { objectId: 'toolMalletA', hand: 'right' });
+    await waitFor(() => st(a).objects.get('toolMalletA')?.status === 'carried', 2000, 'mallet carried');
+    for (let i = 0; i < 3; i++) await hit('ghBustN');
+    expect(b('ghBustN').stage).toBe(2);
+    expect(st(a).players.get('f1').score).toBe(26);
+
+    // That much damage brings a guard, who catches us: held in the security office.
+    await waitFor(() => st(a).players.get('f1').wanted >= 4, 2000, 'wanted');
+    await waitFor(() => st(a).agents.size > 0, 2000, 'guard');
+    const bust = b('ghBustN');
+    for (let i = 0; i < 60 && st(a).players.get('f1').status !== 'held'; i++) { pose(a, bust.x + 0.5, 0, bust.z); await sleep(150); }
+    expect(st(a).players.get('f1').status).toBe('held');
+    expect(st(a).players.get('f1').wanted).toBe(0);
+    expect(st(a).objects.get('toolMalletA').status).not.toBe('carried'); // dropped when caught
+
+    // Late joiners spectate until the next round.
+    const c = await join('fraud-party-113', 'f2');
+    await waitFor(() => st(a).players.get('f2') !== undefined, 2000, 'joined');
+    expect(st(a).players.get('f2').status).toBe('spectating');
+
+    a.send('endRound', {});
+    await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
+    let left = 0;
+    st(a).breakables.forEach((x: any) => { if (x.kind === 'destructible') left++; });
+    expect(left).toBe(0);
+    expect(st(a).agents.size).toBe(0);
+    expect(st(a).players.get('f1').status).toBe('active');
+    await Promise.all([a.leave(), c.leave()]);
   });
 });
 

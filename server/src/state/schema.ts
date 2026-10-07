@@ -12,7 +12,7 @@ export const PlayerT = schema({
   name: t.string().default(''),
   joinedAt: t.number().default(0),
   isVR: t.boolean().default(false),
-  /** 'active' | 'ko' | 'spectating' | 'reconnecting' */
+  /** 'active' | 'ko' | 'held' | 'spectating' | 'reconnecting' */
   status: t.string().default('active'),
   /** '' | 'A' | 'B' */
   team: t.string().default(''),
@@ -21,6 +21,8 @@ export const PlayerT = schema({
   koUntil: t.number().default(0),
   protectedUntil: t.number().default(0),
   menuOpen: t.boolean().default(false),
+  /** Insurance Fraud security level, 0–5. */
+  wanted: t.uint8().default(0),
   feetY: t.float32().default(0),
   head: PoseT,
   left: PoseT,
@@ -49,11 +51,25 @@ export type ObjectT = SchemaType<typeof ObjectT>;
 
 export const BreakableT = schema({
   id: t.string().default(''),
-  /** 'case' (later: vase, painting, …) */
+  /** 'case' (CTR glass cases) or 'destructible' (Insurance Fraud) */
   kind: t.string().default(''),
-  /** 0 intact, 1 cracked, 2 shattered */
+  /** Destructibles: catalogue key (vase, statue, anchor, mammoth, …). */
+  variant: t.string().default(''),
+  /** 0 intact, 1 damaged, 2 destroyed */
   stage: t.uint8().default(0),
   hits: t.uint8().default(0),
+  hp: t.float32().default(0),
+  maxHp: t.float32().default(0),
+  /** Insured value, thousands of dollars. */
+  value: t.uint16().default(0),
+  /** Least tool class needed: 'hands' | 'tool' | 'heavy'. */
+  tool: t.string().default(''),
+  /** Reach target around the centre, m. */
+  radius: t.float32().default(0),
+  yaw: t.float32().default(0),
+  /** Anchors: the object they hold. Ultras: locked until their anchors are gone. */
+  parent: t.string().default(''),
+  locked: t.boolean().default(false),
   team: t.string().default(''),
   x: t.float32().default(0), y: t.float32().default(0), z: t.float32().default(0),
 }, 'Breakable');

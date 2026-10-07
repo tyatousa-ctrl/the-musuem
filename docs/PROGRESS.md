@@ -130,9 +130,20 @@ Not verified in headset.
 
 Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded voice lines.
 
-### M8–M9: not started
+### M8 — Insurance Fraud: in progress (server and rules done; client not yet)
 
-Insurance Fraud is listed as "coming soon" on the lobby totem.
+| Item | Status |
+|---|---|
+| Destructible catalogue in tunables (value, hit points, tool needed) and 46 placed destructibles, including three ultra-high-value pieces (Mammoth skeleton, Giant Canvas, Lion Gate) each held by three anchors | unit |
+| Tools with damage, durability, swing speed and limited restocks: mallets, crowbars, extinguisher, ceremonial mace, fire axe, sledgehammer, stone ball (thrown) | unit, bot |
+| Breakables generalised: CTR cases and destructibles are one system; modes decide damage | bot (CTR and Fraud) |
+| Credit: regular objects pay as you damage them; ultras pay 60% to the finisher, 40% by anchors loosened | unit |
+| Security Level 0–5 from recent damage, decaying when you lie low; level 2 reveals you, 3 sounds alarms, 4–5 send guards (shared agent system, grid A* routing) who catch you and hold you in the security office | unit, bot |
+| Economy simulation: greedy-highest-value does not beat the other strategies (it loses clearly) | unit |
+| Join-in-progress: spectate until the next round | bot |
+| Client: destructible models, value tags, tool models, guards, wanted beacons, payout pop-ups, spectator view | not started |
+
+The mode stays hidden on the lobby totem until the client is done.
 
 ## Known gaps and issues
 

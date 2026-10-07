@@ -392,6 +392,54 @@ const slots: Slot[] = [
   { id: 'propVase1', kind: 'prop', room: 'greatHall', pos: [27.3, 1.1, 0] },
 ];
 
+// ─── Insurance Fraud: destructibles (brief §18) and tool racks ────────────────
+const D = (id: string, room: string, variant: string, x: number, y: number, z: number, yaw = 0, parent?: string): Slot =>
+  ({ id, kind: 'destructible', room, variant, pos: [x, y, z], yaw, parent });
+const T = (id: string, room: string, variant: string, x: number, y: number, z: number): Slot => ({ id, kind: 'tool', room, variant, pos: [x, y, z] });
+
+slots.push(
+  // Great Hall: cheap things close to the spawn.
+  D('ghVaseN', 'greatHall', 'vase', 20, 0, -10), D('ghVaseS', 'greatHall', 'vase', 20, 0, 10),
+  D('ghUrnN', 'greatHall', 'urn', 33, 0, -20), D('ghUrnS', 'greatHall', 'urn', 33, 0, 20),
+  D('ghBustN', 'greatHall', 'bust', 18, 0, -23), D('ghBustS', 'greatHall', 'bust', 18, 0, 23),
+  // Greek and Roman.
+  D('grStatueW', 'greek', 'statue', 19, 0, 39, PI / 2), D('grStatueE', 'greek', 'statue', 31, 0, 39, -PI / 2),
+  D('grAmphoraN', 'greek', 'amphora', 25, 0, 36), D('grAmphoraS', 'greek', 'amphora', 25, 0, 42), D('grBust', 'greek', 'bust', 37, 0, 39),
+  // Egypt.
+  D('egVase', 'egyptS', 'vase', 20, 0, -31), D('egUrn', 'egyptS', 'urn', 28, 0, -31),
+  D('egAmphora', 'egyptM', 'amphora', 13.5, 0, -38.75), D('egClock', 'egyptM', 'clock', 28, 0, -41.6),
+  D('egStatue', 'egyptN', 'statue', 17, 0, -46.5), D('egVase2', 'egyptN', 'vase', 30, 0, -46.5),
+  // Arms and Armor.
+  D('arClock', 'armsArmor', 'clock', 5, 0, -48.6), D('arBust', 'armsArmor', 'bust', 5, 0, -39), D('arPainting', 'armsArmor', 'painting', 1.5, 0, -26, PI / 2),
+  // Africa, Oceania, the Americas.
+  D('cuUrn', 'cultures', 'urn', 7, 0, 14), D('cuAmphora', 'cultures', 'amphora', 5, 0, 46.5),
+  // Dinosaur Hall.
+  D('diVaseN', 'dinoHall', 'vase', -4, 0, -10), D('diVaseS', 'dinoHall', 'vase', -20, 0, 10),
+  // The American Wing.
+  D('amClock', 'american', 'clock', -50, 0, -31, PI / 2), D('amPainting', 'american', 'painting', -41, 0, -36), D('amStatue', 'american', 'statue', -30, 0, -25), D('amVase', 'american', 'vase', -25, 0, -48),
+  // Sculpture Court and Modern.
+  D('scStatue', 'sculptureCourt', 'statue', -28, 0, -8), D('moPainting', 'modern', 'painting', -50, 0, 31), D('moStatue', 'modern', 'statue', -30, 0, 45), D('moVase', 'modern', 'vase', -56, 0, 15),
+  // Courts.
+  D('ncUrn', 'northCourt', 'urn', -40, 0, -60), D('ncStatue', 'northCourt', 'statue', -45, 0, -66), D('ncAmphora', 'northCourt', 'amphora', 2, 0, -58),
+  // Upstairs: the European Paintings masterpieces, Asian Art, Musical Instruments.
+  D('pEMaster', 'paintE2', 'masterpiece', -31.5, F2, -20), D('pWMaster', 'paintW4', 'masterpiece', -50.5, F2, 20),
+  D('pWPainting', 'paintW2', 'painting', -50.5, F2, -20), D('pEPainting', 'paintE4', 'painting', -31.5, F2, 20),
+  D('asUrn', 'asianArt', 'urn', 5, F2, -31), D('inClock', 'instruments', 'clock', 5, F2, 31),
+  // Ultra-high-value pieces, each held by three anchors that must be loosened first.
+  D('mammoth', 'dinoHall', 'mammoth', -12, 0, 42),
+  D('mammothA1', 'dinoHall', 'anchor', -15, 0, 38, 0, 'mammoth'), D('mammothA2', 'dinoHall', 'anchor', -8.5, 0, 38.5, 0, 'mammoth'), D('mammothA3', 'dinoHall', 'anchor', -12, 0, 47.5, 0, 'mammoth'),
+  D('giantCanvas', 'sculptureCourt', 'canvas', -55, 0, 0, -PI / 2),
+  D('canvasA1', 'sculptureCourt', 'anchor', -53, 0, -4.5, 0, 'giantCanvas'), D('canvasA2', 'sculptureCourt', 'anchor', -53, 0, 4.5, 0, 'giantCanvas'), D('canvasA3', 'sculptureCourt', 'anchor', -58.5, 0, 0, 0, 'giantCanvas'),
+  D('lionGate', 'southCourt', 'gate', 30, 0, 68),
+  D('gateA1', 'southCourt', 'anchor', 27, 0, 64, 0, 'lionGate'), D('gateA2', 'southCourt', 'anchor', 33, 0, 64, 0, 'lionGate'), D('gateA3', 'southCourt', 'anchor', 30, 0, 73.5, 0, 'lionGate'),
+  // Tools: scarce, spread out, the heavy ones far from the big pieces.
+  T('toolMalletA', 'greatHall', 'mallet', 30, 0, -6), T('toolMalletB', 'greatHall', 'mallet', 30, 0, 6),
+  T('toolCrowbarA', 'egyptS', 'crowbar', 16, 0, -31), T('toolCrowbarB', 'cultures', 'crowbar', 5, 0, 31),
+  T('toolExtinguisher', 'armsArmor', 'extinguisher', 1, 0, -48), T('toolMace', 'armsArmor', 'mace', 11, 0, -18),
+  T('toolAxe', 'service', 'axe', 24, -6, -30), T('toolSledge', 'northCourt', 'sledgehammer', -50, 0, -70),
+  T('toolBall', 'southCourt', 'ball', -50, 0, 68),
+);
+
 const landmarks: MuseumMap['landmarks'] = [
   { id: 'caseA', room: 'northCourt', pos: [-12, 0, -63] },
   { id: 'caseB', room: 'southCourt', pos: [-12, 0, 63] },

@@ -121,8 +121,12 @@ export interface Zone {
 }
 
 export interface Slot {
-  id: string; kind: 'relicCase' | 'artifact' | 'tool' | 'prop' | 'painting';
+  id: string; kind: 'relicCase' | 'artifact' | 'tool' | 'prop' | 'painting' | 'destructible';
   room: RoomId; pos: Vec3;
+  /** Tools and destructibles: what goes here (catalogue key in tunables.insuranceFraud). */
+  variant?: string;
+  /** Destructible anchors: the ultra-high-value object they hold up. */
+  parent?: string;
   /** For artifacts: placement difficulty. */
   tier?: 'obvious' | 'tucked' | 'hidden';
   /** For paintings: wall normal yaw and max size. */

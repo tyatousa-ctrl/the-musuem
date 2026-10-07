@@ -5,7 +5,7 @@ export const ROOM_NAME = 'party';
 export type ModeId = 'tour' | 'ctr' | 'artifactHunt' | 'crowdControl' | 'insuranceFraud';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'roundEnd';
 export type Team = '' | 'A' | 'B';
-export type PlayerStatus = 'active' | 'ko' | 'spectating' | 'reconnecting';
+export type PlayerStatus = 'active' | 'ko' | 'held' | 'spectating' | 'reconnecting';
 export type Hand = 'left' | 'right';
 
 export interface ModeInfo {
@@ -21,7 +21,7 @@ export const MODE_CATALOG: ModeInfo[] = [
   { id: 'ctr', name: 'Capture the Relic', pitch: 'Smash their case, steal their relic, carry it home.', players: '2–4 · teams', available: true },
   { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: true },
   { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: true },
-  { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '2–4 · FFA', available: false },
+  { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '1–4 · FFA', available: false },
   { id: 'tour', name: 'Free Tour', pitch: 'A timed wander. Explore, practise, mess about.', players: '1–4', available: true },
 ];
 
@@ -71,6 +71,10 @@ export interface ServerEvents {
   teleport: { pos: [number, number, number]; yaw: number; fade?: boolean; keepYaw?: boolean };
   scored: { team: Team; playerId: string; scoreA: number; scoreB: number };
   announcement: { text: string; tone: 'info' | 'good' | 'bad' | 'alert'; team?: Team };
+  /** A destructible took damage (stage 1) or was destroyed (stage 2). */
+  smash: { id: string; pos: [number, number, number]; stage: number; variant: string };
+  /** Insurance Fraud: a player earned insured damage (thousands of dollars). */
+  payout: { playerId: string; amount: number; pos: [number, number, number] };
   /** Crowd Control moments, for sounds and pop-ups. */
   crowd: { type: 'touched' | 'routed' | 'wrongExit' | 'breach' | 'filming'; effect?: string; pos: [number, number, number] };
   grabRejected: { objectId: string; hand: Hand };

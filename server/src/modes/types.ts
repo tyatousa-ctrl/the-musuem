@@ -1,5 +1,5 @@
 import type { Hand, ModeId, MuseumMap, ServerEvents, Spawn, Team, Tunables } from '@museum/shared';
-import type { ObjectT, PartyState, PlayerT } from '../state/schema.js';
+import type { BreakableT, ObjectT, PartyState, PlayerT } from '../state/schema.js';
 import type { Systems } from '../systems/index.js';
 
 export interface RoundResult {
@@ -54,6 +54,9 @@ export interface ServerMode {
   /** Return true to let the breakable system apply the hit. */
   onBreakableHit?(ctx: ModeContext, player: PlayerT, breakableId: string): boolean;
   onBreakableStage?(ctx: ModeContext, player: PlayerT, breakableId: string, stage: number): void;
+  /** Damage a validated hit does (0 rejects it). Without this, every allowed hit does 1. */
+  breakableDamage?(ctx: ModeContext, player: PlayerT, b: BreakableT, hand: Hand): number;
+  onBreakableDamaged?(ctx: ModeContext, player: PlayerT, b: BreakableT, damage: number): void;
   onKo?(ctx: ModeContext, player: PlayerT, pos: [number, number, number]): void;
   /** Respawn delay override in seconds (e.g. short-handed teams). */
   respawnDelaySec?(ctx: ModeContext, player: PlayerT): number;

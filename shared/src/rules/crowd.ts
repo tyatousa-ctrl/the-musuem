@@ -10,7 +10,10 @@ import { AgentNav, type Circle, type Segment } from './agents.js';
  */
 export const TOURIST_KINDS = ['normal', 'kid', 'leader', 'follower', 'stubborn', 'lost', 'guide', 'influencer'] as const;
 export type TouristKind = (typeof TOURIST_KINDS)[number];
-export const MOODS = ['ok', 'wrong', 'offRoute', 'filming', 'huffy', 'waiting'] as const;
+/** Every synced NPC kind, by index (tourists, then Insurance Fraud's guards). */
+export const AGENT_KINDS = [...TOURIST_KINDS, 'guard'] as const;
+/** Moods by index; 'alert' is a guard in pursuit. */
+export const MOODS = ['ok', 'wrong', 'offRoute', 'filming', 'huffy', 'waiting', 'alert'] as const;
 export type Mood = (typeof MOODS)[number];
 
 type Cfg = Tunables['crowdControl'];
