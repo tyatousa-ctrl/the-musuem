@@ -16,9 +16,10 @@ services:
         value: production
       - key: NODE_VERSION
         value: "22"
-      # Optional CORS allowlist (client origin or bare host). Left unset in the
-      # Blueprint because Render rejected a fromService reference to the static
-      # site; add it in the dashboard once the client URL is known.
+      # CORS allowlist: the client's public URL (comma-separate several). Change
+      # it here or in the dashboard if the static site's URL differs.
+      - key: CLIENT_ORIGIN
+        value: https://the-museum-client.onrender.com
 
   - type: web
     name: the-museum-client
@@ -32,9 +33,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Server's public host; the client upgrades a bare host to https:// and wss://.
+      # The server's PUBLIC URL. (fromService "host" is the private-network
+      # hostname, which browsers cannot reach, so it is set explicitly.)
+      # Change it here or in the dashboard if the server's URL differs.
       - key: VITE_SERVER_URL
-        fromService:
-          type: web
-          name: the-museum-server
-          property: host
+        value: https://the-museum-server.onrender.com
