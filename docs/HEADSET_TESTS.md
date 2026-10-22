@@ -89,3 +89,17 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Throwing the stone ball.** Throw it at a statue. Does it register?
 - [ ] **Frame rate.** Stand in the Dinosaur Hall near the Mammoth with price tags showing. Note any drops below 72 fps.
 
+## Hide and Seek
+
+- [ ] **Counting.** As the seeker, is the view fully black while counting, with the countdown readable at the bottom right?
+- [ ] **The call.** As the seeker, can you tell which direction the "cuck-oo" comes from, and roughly how far? Is it loud enough from two rooms away, and too loud up close?
+- [ ] **Tagging.** Reach out and touch a hider. Does it register reliably without needing a swing?
+- [ ] **Hiding spots.** Note good and bad spots (behind the T. rex, the service level, the catwalks, the paintings upstairs).
+
+## Fix the Exhibit
+
+- [ ] **The corner countdown.** Is the timer at the bottom right readable without blocking your view?
+- [ ] **Eyes closed.** Three seconds of black: comfortable?
+- [ ] **Moving pieces.** Pick up a painting on its easel and a statue. Is the grab point (the middle of the piece) natural? Do they click into place within about a foot?
+- [ ] **No copying.** With two players, confirm you cannot see the other player or their pieces.
+

@@ -142,6 +142,31 @@ export const tunables = {
     /** Score per visitor needed for 1, 2 and 3 stars. */
     starThresholds: [0.4, 0.65, 0.85],
   },
+  hideSeek: {
+    /** Whole round, s (hiding time included). */
+    timeLimitSec: 10 * 60,
+    /** The seeker is blindfolded this long while everyone hides, s. */
+    hideSec: 45,
+    /** Every hidden player calls out this often, s. */
+    pingEverySec: 120,
+    /** Hiders get a warning this long before each call, s. */
+    pingWarnSec: 10,
+    /** A seeker's hand this close to a hider's body tags them, m. */
+    tagReach: 0.45,
+    /** Desktop click-to-tag reach, head to head, m. */
+    desktopTagReach: 2.0,
+  },
+  fixExhibit: {
+    memorizeSec: 10,
+    blindSec: 3,
+    solveSec: 120,
+    /** A piece released within this distance of its spot clicks into place, m (one foot). */
+    snapRadius: 0.3048,
+    /** Jumbled pieces start at least this far from their spot, m. */
+    minJumbleDist: 3,
+    /** An unsnapped piece scores 1 − distance / this, floored at 0, m. */
+    scoreFalloff: 4,
+  },
   insuranceFraud: {
     timeLimitSec: 5 * 60,
     /** Seconds held in the security office when caught. */

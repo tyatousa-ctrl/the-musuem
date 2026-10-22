@@ -25,6 +25,9 @@ process.env.MUSEUM_TUNABLES = JSON.stringify({
   crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
   // Insurance Fraud: guards come after the first bit of damage.
   insuranceFraud: { heatLevels: [1, 2, 3, 4, 500] },
+  // Short clocks for the new modes.
+  hideSeek: { hideSec: 0.6, pingEverySec: 1.5, pingWarnSec: 0.5 },
+  fixExhibit: { memorizeSec: 0.6, blindSec: 0.3, solveSec: 4 },
 });
 
 const PORT = 25670 + Math.floor(Math.random() * 300);
@@ -368,6 +371,98 @@ describe('Insurance Fraud, scripted', () => {
     expect(st(a).agents.size).toBe(0);
     expect(st(a).players.get('f1').status).toBe('active');
     await Promise.all([a.leave(), c.leave()]);
+  });
+});
+
+describe('Hide and Seek, scripted', () => {
+  it('the seeker counts blind, hiders call out, a tag recruits the hider and ends the round', async () => {
+    const a = await join('hide-party-114', 'k1');
+    const b = await join('hide-party-114', 'k2');
+    const pings: string[] = [];
+    a.onMessage('hidePing', (m: { playerId: string }) => pings.push(m.playerId));
+    b.onMessage('hidePing', () => {});
+    a.send('selectMode', { mode: 'hideSeek' });
+    await waitFor(() => st(a).mode === 'hideSeek', 2000, 'mode');
+    a.send('startRound', {});
+    await waitFor(() => st(a).phase === 'playing', 3000, 'playing');
+    const P = (id: string) => st(a).players.get(id);
+    const seekerId = P('k1').team === 'B' ? 'k1' : 'k2';
+    const hiderId = seekerId === 'k1' ? 'k2' : 'k1';
+    const [seeker, hider] = seekerId === 'k1' ? [a, b] : [b, a];
+    expect(P(seekerId).status).toBe('blind');
+    expect(P(hiderId).team).toBe('A');
+
+    // The hider runs off to the Greek gallery; the seeker opens their eyes.
+    pose(hider, 25, 0, 40);
+    await waitFor(() => st(a).modePhase === 'seek', 4000, 'seek phase');
+    expect(P(seekerId).status).toBe('active');
+    await waitFor(() => pings.includes(hiderId), 4000, 'hider calls out');
+
+    // A tag while the seeker is blind would not count; now it does.
+    pose(seeker, 25.6, 0, 40.2, [25, 1.3, 40]);
+    await waitFor(() => P(hiderId).team === 'B', 3000, 'hider found');
+    await waitFor(() => st(a).phase === 'roundEnd', 3000, 'round over');
+    expect(st(a).result).toMatch(/found everyone/);
+    await Promise.all([a.leave(), b.leave()]);
+  });
+});
+
+describe('Fix the Exhibit, scripted', () => {
+  it('private pieces, a different jumble each, one-foot snap, percentage scores', async () => {
+    const a = await join('exhibit-party-115', 'x1');
+    const b = await join('exhibit-party-115', 'x2');
+    a.send('selectMode', { mode: 'fixExhibit' });
+    await waitFor(() => st(a).mode === 'fixExhibit', 2000, 'mode');
+    a.send('startRound', {});
+    await waitFor(() => st(a).modePhase === 'memorize', 4000, 'memorize');
+    const slots = museum.slots.filter((x) => x.kind === 'exhibit');
+    const pieces = (owner: string) => { const out: any[] = []; st(a).objects.forEach((o: any, id: string) => { if (o.kind === 'piece' && o.owner === owner) out.push({ id, ...o.toJSON() }); }); return out; };
+    expect(pieces('x1')).toHaveLength(slots.length);
+    expect(pieces('x2')).toHaveLength(slots.length);
+    expect(pieces('x1').every((o) => o.status === 'home')).toBe(true);
+
+    await waitFor(() => st(a).modePhase === 'blind', 3000, 'eyes closed');
+    expect(st(a).players.get('x1').status).toBe('blind');
+    await waitFor(() => st(a).modePhase === 'solve', 3000, 'solve');
+    expect(st(a).players.get('x1').status).toBe('active');
+    // Everything has moved, and the two jumbles differ.
+    const one = pieces('x1'), two = pieces('x2');
+    for (const o of one) {
+      const s = slots.find((x) => o.id.endsWith(`:${x.id}`))!;
+      expect(Math.hypot(o.x - s.pos[0], o.z - s.pos[2])).toBeGreaterThan(2.5);
+    }
+    expect(one.some((o) => { const t = two.find((q) => q.id.split(':')[1] === o.id.split(':')[1]); return Math.hypot(o.x - t.x, o.z - t.z) > 0.5; })).toBe(true);
+
+    // x2 can't touch x1's pieces.
+    const p = one[0];
+    pose(b, p.x + 0.4, 0, p.z, [p.x, p.y, p.z]);
+    await sleep(100);
+    b.send('grab', { objectId: p.id, hand: 'right' });
+    await sleep(200);
+    expect(st(a).objects.get(p.id).status).not.toBe('carried');
+
+    // x1 carries it back and lets go 20 cm from its spot: it clicks into place.
+    const snaps: string[] = [];
+    a.onMessage('snap', (m: { id: string }) => snaps.push(m.id));
+    pose(a, p.x + 0.4, 0, p.z, [p.x, p.y, p.z]);
+    await sleep(100);
+    a.send('grab', { objectId: p.id, hand: 'right' });
+    await waitFor(() => st(a).objects.get(p.id)?.status === 'carried', 2000, 'carried');
+    const s = slots.find((x) => p.id.endsWith(`:${x.id}`))!;
+    const at: [number, number, number] = [s.pos[0] + 0.2, p.y, s.pos[2]];
+    pose(a, at[0] + 0.4, 0, at[2], at);
+    await sleep(150);
+    a.send('release', { hand: 'right', pos: at, vel: [0, 0, 0] });
+    await waitFor(() => st(a).objects.get(p.id)?.status === 'home', 2000, 'snapped');
+    expect(st(a).objects.get(p.id).x).toBeCloseTo(s.pos[0], 3);
+    expect(snaps).toContain(p.id);
+
+    await waitFor(() => st(a).phase === 'roundEnd', 8000, 'round over');
+    expect(st(a).players.get('x1').score).toBeGreaterThan(st(a).players.get('x2').score);
+    expect(st(a).result).toMatch(/%/);
+    await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
+    expect(pieces('x1')).toHaveLength(0);
+    await Promise.all([a.leave(), b.leave()]);
   });
 });
 

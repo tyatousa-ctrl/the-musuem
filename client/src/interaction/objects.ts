@@ -62,6 +62,11 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
     glow.name = 'glow';
     g.add(glow);
     g.scale.setScalar(1.4); // big enough to spot across a room
+  } else if (kind === 'piece') {
+    // Fix the Exhibit: the destructible models, held by their centre.
+    const m = destructibleMesh(variant);
+    m.position.y = -(DESTRUCTIBLE_CENTER[variant] ?? 1);
+    g.add(m);
   } else if (kind === 'tool') {
     g.add(makeTool(variant));
   } else if (kind === 'stanchion') {
@@ -167,6 +172,7 @@ export class WorldObjects {
   nearest(state: NetState, p: THREE.Vector3, radius: number, myId: string): string | null {
     let best: string | null = null, bestD = radius;
     state?.objects?.forEach((o: NetState, id: string) => {
+      if (o.owner && o.owner !== myId) return; // someone else's private piece
       if (o.holder && o.holder !== myId) return;
       if (o.status === 'carried' && o.holder === myId) return;
       const e = this.entries.get(id);
@@ -182,6 +188,7 @@ export class WorldObjects {
     this.t += dt;
     const seen = new Set<string>();
     state?.objects?.forEach((o: NetState, id: string) => {
+      if (o.owner && o.owner !== myId) return; // private to another player: never drawn
       seen.add(id);
       let e = this.entries.get(id);
       if (!e) {
@@ -214,6 +221,7 @@ export class WorldObjects {
         else e.obj.position.lerp(tmp, Math.min(1, dt * 15));
       }
       if (e.kind === 'artifact') e.obj.rotation.y += dt * 0.8;
+      if (e.kind === 'piece') e.obj.rotation.y = o.yaw;
       if (e.kind === 'relic') {
         e.obj.rotation.y += dt * (o.status === 'home' ? 0.6 : 2);
         const glow = e.obj.getObjectByName('glow') as THREE.Mesh | undefined;

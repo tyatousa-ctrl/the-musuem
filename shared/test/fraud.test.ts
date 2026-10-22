@@ -39,6 +39,22 @@ describe('Insurance Fraud map data', () => {
   });
 });
 
+describe('Fix the Exhibit layout', () => {
+  it('every exhibit piece and player spot stands clear in the Sculpture Court, with room to jumble', () => {
+    const nav = new AgentNav(museum);
+    const pieces = museum.slots.filter((s) => s.kind === 'exhibit');
+    expect(pieces.length).toBeGreaterThanOrEqual(8);
+    for (const s of [...pieces, ...museum.spawns.exhibit.map((x) => ({ id: x.id, pos: x.pos, room: 'sculptureCourt', variant: 'vase' }))]) {
+      expect(nav.roomAt(s.pos[0], s.pos[2])?.id, s.id).toBe('sculptureCourt');
+      expect(nav.blocked(s.pos[0], s.pos[2], 0.3), s.id).toBe(false);
+      expect(DESTRUCTIBLE_CENTER[s.variant!], s.id).toBeGreaterThan(0);
+    }
+    for (let i = 0; i < pieces.length; i++) for (let j = i + 1; j < pieces.length; j++) {
+      expect(Math.hypot(pieces[i].pos[0] - pieces[j].pos[0], pieces[i].pos[2] - pieces[j].pos[2]), `${pieces[i].id}/${pieces[j].id}`).toBeGreaterThan(1.5);
+    }
+  });
+});
+
 describe('Insurance Fraud rules', () => {
   it('tools gate what you can break', () => {
     expect(canDamage(cfg, null, 'vase')).toBe(true);

@@ -12,7 +12,7 @@ export const PlayerT = schema({
   name: t.string().default(''),
   joinedAt: t.number().default(0),
   isVR: t.boolean().default(false),
-  /** 'active' | 'ko' | 'held' | 'spectating' | 'reconnecting' */
+  /** 'active' | 'ko' | 'held' | 'blind' | 'spectating' | 'reconnecting' */
   status: t.string().default('active'),
   /** '' | 'A' | 'B' */
   team: t.string().default(''),
@@ -46,6 +46,10 @@ export const ObjectT = schema({
   x: t.float32().default(0), y: t.float32().default(0), z: t.float32().default(0),
   vx: t.float32().default(0), vy: t.float32().default(0), vz: t.float32().default(0),
   spin: t.float32().default(0),
+  /** Facing (pieces that keep their orientation). */
+  yaw: t.float32().default(0),
+  /** Private object: only this player sees it or may grab it (Fix the Exhibit). */
+  owner: t.string().default(''),
 }, 'WorldObject');
 export type ObjectT = SchemaType<typeof ObjectT>;
 
@@ -113,6 +117,9 @@ export const PartyState = schema({
   huntTimeMin: t.uint8().default(6),
   /** Artifact Hunt: false = free-for-all, true = teams. */
   huntTeams: t.boolean().default(false),
+  /** A mode's own sub-phase (e.g. 'memorize' | 'blind' | 'solve') and when it ends (server clock). */
+  modePhase: t.string().default(''),
+  modePhaseEndsAt: t.number().default(0),
   /** Crowd Control: wave, meters (0..1) and tallies. */
   ccWave: t.uint8().default(0),
   ccCongestion: t.float32().default(0),

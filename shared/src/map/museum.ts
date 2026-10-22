@@ -360,6 +360,8 @@ const spawns: MuseumMap['spawns'] = {
   // In the east of each court, away from the relic case.
   teamA: [sp('a1', 33, 0, -58), sp('a2', 37, 0, -58), sp('a3', 29, 0, -55), sp('a4', 35, 0, -54)],
   teamB: [sp('b1', 33, 0, 58), sp('b2', 37, 0, 58), sp('b3', 29, 0, 55), sp('b4', 35, 0, 54)],
+  // Fix the Exhibit: the east end of the Sculpture Court, facing west into the room.
+  exhibit: [sp('x1', -25.5, 0, -2.5), sp('x2', -25.5, 0, 2.5), sp('x3', -27, 0, -0.8), sp('x4', -27, 0, 0.8)],
 };
 
 const zones: Zone[] = [
@@ -438,6 +440,16 @@ slots.push(
   T('toolExtinguisher', 'armsArmor', 'extinguisher', 1, 0, -48), T('toolMace', 'armsArmor', 'mace', 11, 0, -18),
   T('toolAxe', 'service', 'axe', 24, -6, -30), T('toolSledge', 'northCourt', 'sledgehammer', -50, 0, -70),
   T('toolBall', 'southCourt', 'ball', -50, 0, 68),
+);
+
+// ─── Fix the Exhibit: the Sculpture Court's arrangement (brief extension) ─────
+const X = (id: string, variant: string, x: number, z: number, yaw = 0): Slot => ({ id, kind: 'exhibit', room: 'sculptureCourt', variant, pos: [x, 0, z], yaw });
+slots.push(
+  X('exPaintingN', 'painting', -50, -10.6), X('exPaintingS', 'painting', -50, 10.6, PI),
+  X('exMasterW', 'masterpiece', -58.2, 0, PI / 2),
+  X('exVaseN', 'vase', -45, -9.5), X('exUrnS', 'urn', -45, 9.5),
+  X('exBustN', 'bust', -29, -9.5), X('exAmphoraS', 'amphora', -29, 9.5),
+  X('exStatue', 'statue', -37.5, -1.5, PI / 2), X('exClock', 'clock', -55, -8, PI / 2), X('exVaseS', 'vase', -55, 8),
 );
 
 const landmarks: MuseumMap['landmarks'] = [

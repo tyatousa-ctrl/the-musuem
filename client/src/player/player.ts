@@ -99,6 +99,9 @@ export class Player {
 
   setFade(target: number) { this.fadeTarget = target; }
 
+  /** Eyes closed: instantly and completely black (no peeking while it fades). */
+  blackout = false;
+
   /** Instant black, held briefly, then fade back in (elevator rides). */
   flash(hold = 0.3) {
     (this.fade.material as THREE.MeshBasicMaterial).opacity = 1;
@@ -173,8 +176,8 @@ export class Player {
     vm.opacity += (vTarget - vm.opacity) * Math.min(1, dt * 8);
     const fm = this.fade.material as THREE.MeshBasicMaterial;
     this.flashHold = Math.max(0, this.flashHold - dt);
-    const fTarget = Math.max(this.fadeTarget, headFade, this.flashHold > 0 ? 1 : 0);
-    fm.opacity += (fTarget - fm.opacity) * Math.min(1, dt * 6);
+    const fTarget = Math.max(this.fadeTarget, headFade, this.flashHold > 0 || this.blackout ? 1 : 0);
+    fm.opacity = this.blackout ? 1 : fm.opacity + (fTarget - fm.opacity) * Math.min(1, dt * 6);
     this.fade.visible = fm.opacity > 0.01;
     this.vignette.visible = vm.opacity > 0.01;
   }

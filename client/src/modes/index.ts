@@ -6,6 +6,8 @@ import type { WorldObjects } from '../interaction/objects';
 import { fmtTime } from '../ui/menus';
 import { crowdControl } from './crowd';
 import { insuranceFraud } from './fraud';
+import { hideSeek } from './hideSeek';
+import { fixExhibit } from './fixExhibit';
 
 /** What a client mode can touch (brief §14). */
 export interface ClientModeCtx {
@@ -15,6 +17,9 @@ export interface ClientModeCtx {
   scene: THREE.Object3D;
   /** Local player's feet position. */
   playerPos: () => THREE.Vector3;
+  /** Hide all other players, or just some name tags. */
+  setAvatarsHidden: (hidden: boolean) => void;
+  setNameFilter: (hide: ((id: string) => boolean) | null) => void;
 }
 
 export interface ClientMode {
@@ -24,6 +29,8 @@ export interface ClientMode {
   exit(ctx: ClientModeCtx): void;
   /** Lines for the wrist display / desktop HUD. */
   hud(ctx: ClientModeCtx): string[];
+  /** Optional big countdown in the bottom-right of your view: "label\nvalue", or ''. */
+  corner?(ctx: ClientModeCtx): string;
 }
 
 const TEAM = { A: 'Falcons', B: 'Masks' } as const;
@@ -134,7 +141,7 @@ const artifactHunt: ClientMode = {
 };
 
 /** Client mode registry; one line per mode. */
-export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, crowdControl, insuranceFraud, tour };
+export const CLIENT_MODES: Partial<Record<ModeId, ClientMode>> = { ctr, artifactHunt, crowdControl, insuranceFraud, hideSeek, fixExhibit, tour };
 
 export function lobbyHud(ctx: ClientModeCtx): string[] {
   const s = ctx.net.state;

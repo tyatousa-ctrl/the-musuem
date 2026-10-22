@@ -122,6 +122,8 @@ class Avatar {
     (this.tag.material.map as THREE.Texture).needsUpdate = true;
   }
 
+  showTag(v: boolean) { this.tag.visible = v; }
+
   dispose() { this.group.removeFromParent(); }
 }
 
@@ -130,6 +132,10 @@ export class Avatars {
   readonly group = new THREE.Group();
   private map = new Map<string, Avatar>();
   private shadowTex: THREE.Texture;
+
+  /** Modes can hide everyone (Fix the Exhibit) or some name tags (Hide and Seek). */
+  hideAll = false;
+  hideName: ((id: string) => boolean) | null = null;
 
   constructor(shadowTex: THREE.Texture) { this.shadowTex = shadowTex; this.group.name = 'avatars'; }
 
@@ -144,6 +150,8 @@ export class Avatars {
       if (!a) { a = new Avatar(this.shadowTex); this.map.set(id, a); this.group.add(a.group); }
       a.push(now, p);
       a.update(now, p, dt);
+      if (this.hideAll) a.group.visible = false;
+      a.showTag(!this.hideName?.(id));
     });
     for (const [id, a] of this.map) if (!seen.has(id)) { a.dispose(); this.map.delete(id); }
   }

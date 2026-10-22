@@ -19,6 +19,7 @@ import { PanelInput } from './ui/panel';
 import { Announcer, HOW_TO, LobbyTotem, PersonalMenu, WristHud, fmtTime } from './ui/menus';
 import { DesktopOverlay } from './ui/overlay';
 import { ElevatorPanels } from './ui/elevators';
+import { CornerTimer } from './ui/corner';
 import { CLIENT_MODES, lobbyHud, type ClientMode, type ClientModeCtx } from './modes';
 
 declare global { interface Window { __museum?: { ready: boolean; game: Game } } }
@@ -98,6 +99,7 @@ export class Game {
     this.scene.add(this.doors.group);
 
     this.player = new Player(this.camera, this.renderer, this.world.collider);
+    this.corner = new CornerTimer(this.camera);
     this.player.dynamicBoxes = this.doors.boxes; // breakables add theirs each frame
     this.scene.add(this.player.rig);
     this.setupHands();
@@ -118,7 +120,11 @@ export class Game {
     if (this.slug && !flags.offline) await this.connect();
     if (flags.mode && this.net?.isHost()) this.net.send('selectMode', { mode: flags.mode as ModeId });
     else this.overlay.status('');
-    this.modeCtx = { net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene, playerPos: () => this.player.feet };
+    this.modeCtx = {
+      net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene, playerPos: () => this.player.feet,
+      setAvatarsHidden: (h) => { this.avatars.hideAll = h; },
+      setNameFilter: (f) => { this.avatars.hideName = f; },
+    };
 
     // VR entry button; audio starts on the same gesture (brief §10).
     if (!flags.clean && !flags.cam) {
@@ -263,8 +269,10 @@ export class Game {
     const me = this.net?.me();
     const ko = me?.status === 'ko';
     const held = me?.status === 'held'; // caught by security (Insurance Fraud)
+    const blind = me?.status === 'blind'; // eyes closed (Hide and Seek seeker, Fix the Exhibit shuffle)
     this.player.setFade(ko ? 0.85 : held ? 0.45 : 0);
-    this.player.frozen = ko || held ? 0.1 : this.player.frozen;
+    this.player.blackout = blind;
+    this.player.frozen = ko || held || blind ? 0.1 : this.player.frozen;
     this.player.speedMul = this.carrying() ? tunables.ctr.carrierSpeedMul : this.holding('sledgehammer') ? tunables.insuranceFraud.sledgeSpeedMul : 1;
     this.player.dynamicBoxes = this.breakables.boxes.length ? [...this.doors.boxes, ...this.breakables.boxes] : this.doors.boxes;
     // Late joiners in a timed mode spectate with a free-fly camera on desktop (brief §12.3).
@@ -343,6 +351,7 @@ export class Game {
   }
 
   private viewPos = new THREE.Vector3();
+  private corner!: CornerTimer;
 
   /** Holding a tool of this variant in either hand. */
   private holding(variant: string) {
@@ -605,6 +614,8 @@ export class Game {
       const r = this.xrInput.raw;
       this.wrist.buttons = `L ${r.left.buttons.map((v, i) => (v > 0.5 ? i : '·')).join('')} R ${r.right.buttons.map((v, i) => (v > 0.5 ? i : '·')).join('')}${this.xrInput.menuButtonIndex !== null ? ` menu=${this.xrInput.menuButtonIndex}` : ''}`;
     }
+    const playing = s && this.mode && (s.phase === 'countdown' || s.phase === 'playing');
+    this.corner.update(playing && this.mode!.corner ? this.mode!.corner(this.modeCtx) : '', xr);
     if (xr) this.wrist.update(lines);
     else this.overlay.hud(lines, this.desktop.locked && !this.spectate, s?.phase === 'roundEnd' ? s.result : '');
   }

@@ -121,7 +121,7 @@ export interface Zone {
 }
 
 export interface Slot {
-  id: string; kind: 'relicCase' | 'artifact' | 'tool' | 'prop' | 'painting' | 'destructible';
+  id: string; kind: 'relicCase' | 'artifact' | 'tool' | 'prop' | 'painting' | 'destructible' | 'exhibit';
   room: RoomId; pos: Vec3;
   /** Tools and destructibles: what goes here (catalogue key in tunables.insuranceFraud). */
   variant?: string;
@@ -160,6 +160,8 @@ export interface MuseumMap {
     lobby: Spawn[];
     teamA: Spawn[];
     teamB: Spawn[];
+    /** Fix the Exhibit: where players stand in the puzzle room. */
+    exhibit: Spawn[];
   };
   zones: Zone[];
   slots: Slot[];

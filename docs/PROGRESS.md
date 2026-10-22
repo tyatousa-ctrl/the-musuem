@@ -148,6 +148,17 @@ Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded v
 | Spectators: free-fly camera on desktop and a live scoreboard on the HUD | not verified in a browser |
 | Budget: 57 draw calls in the Great Hall mid-round | browser |
 
+### Extra modes (requested): Hide and Seek, Fix the Exhibit — done (not verified in headset)
+
+| Item | Status |
+|---|---|
+| Hide and Seek: 10-minute round, one random seeker blindfolded for 45 s, hiders call out ("cuck-oo", loud and positional) every 2 minutes with a 10 s warning, a touch (VR) or click (desktop) tags a hider who then joins the seekers, seekers win by finding everyone, hiders still hidden at the end win | bot, browser |
+| Hide and Seek: no name tags over hiders for seekers; late joiners seek | bot (late join not covered) |
+| Fix the Exhibit: 10 pieces in the Sculpture Court; 10 s to memorise with a countdown in the bottom-right corner, 3 s eyes closed (black), 2 minutes to put it back | bot, browser |
+| Fix the Exhibit: a piece dropped within a foot (0.3048 m) of its spot clicks into place (gold ring and click); percentage score at the end | bot, browser |
+| Fix the Exhibit: no copying. Every player has a private set of pieces (only the owner sees or moves them), a different jumble, and other players are invisible during the round; late joiners spectate | bot, browser |
+| Countdown in the bottom-right of your view (desktop screen corner; VR card fixed low-right in the headset view) | browser (desktop) |
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.

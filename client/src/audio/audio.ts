@@ -8,7 +8,7 @@ import { loadPref, savePref } from '../core/identity';
  * licensing; real CC0 recordings can replace any buffer later through the
  * asset manifest. Two independent buses, Music and FX, persisted locally.
  */
-export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door' | 'ding' | 'huff' | 'shutter';
+export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door' | 'ding' | 'huff' | 'shutter' | 'cuckoo' | 'click';
 
 const ACOUSTICS: Record<Room['acoustic'], { decay: number; wet: number; amb: 'murmur' | 'street' | 'water' | 'hum' | 'none' }> = {
   hall: { decay: 3.2, wet: 0.45, amb: 'murmur' },
@@ -244,6 +244,9 @@ export class AudioEngine {
     // An indignant tourist's "hmph!" and an influencer's camera shutter.
     this.buffers.set('huff', this.buffer(0.32, (t) => { const ph = 2 * Math.PI * (230 - t * 260) * t; return (Math.sin(ph) + 0.5 * Math.sin(2 * ph) + 0.35 * Math.sin(3 * ph) + (rnd() - 0.5) * 0.3) * env(t, 0.012, 0.09) * 0.22; }));
     this.buffers.set('shutter', this.buffer(0.18, (t) => (rnd() - 0.5) * (env(t, 0.001, 0.012) + env(Math.max(0, t - 0.07), 0.001, 0.015)) * 0.6));
+    // Hide and Seek's call: a loud two-note "cuck-oo". Fix the Exhibit's snap into place.
+    this.buffers.set('cuckoo', this.buffer(0.9, (t) => { const f = t < 0.3 ? 784 : 622; const tt = t < 0.3 ? t : t - 0.38; return tt < 0 ? 0 : (Math.sin(2 * Math.PI * f * tt) + 0.3 * Math.sin(4 * Math.PI * f * tt)) * env(tt, 0.01, 0.12) * 0.5; }));
+    this.buffers.set('click', this.buffer(0.25, (t) => (Math.sin(2 * Math.PI * 1800 * t) * env(t, 0.001, 0.015) + Math.sin(2 * Math.PI * 1200 * Math.max(0, t - 0.05)) * env(Math.max(0, t - 0.05), 0.001, 0.03) * (t > 0.05 ? 1 : 0)) * 0.5));
     this.buffers.set('ui', this.buffer(0.08, (t) => Math.sin(2 * Math.PI * 1600 * t) * env(t, 0.001, 0.02) * 0.3));
     this.buffers.set('door', this.buffer(0.9, (t) => { lp += (rnd() - lp) * 0.02; return (lp * 3 + Math.sin(2 * Math.PI * 70 * t) * 0.3) * env(t, 0.05, 0.3); }));
     const step = (bright: number, body: number, len: number) => this.buffer(len, (t) => { lp += (rnd() - lp) * bright; return (lp * 2 + Math.sin(2 * Math.PI * body * t) * 0.3) * env(t, 0.002, len / 4) * 0.5; });

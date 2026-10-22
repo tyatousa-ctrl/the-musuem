@@ -151,14 +151,15 @@ export class LobbyTotem {
     y = 480;
     p.text(host ? 'Choose a game' : 'Game (host chooses)', 40, y, 32, GOLD);
     y += 20;
-    const cardH = 80;
+    // Compact cards so all seven games and the selected game's settings fit above Start.
+    const cardH = 62;
     for (const m of MODE_CATALOG) {
       const active = s.mode === m.id;
       const enabled = host && m.available && s.phase === 'lobby';
       p.button(`mode:${m.id}`, '', 40, y, W - 80, cardH, { active, enabled: enabled || active, onClick: () => { if (enabled) { this.net.send('selectMode', { mode: m.id as ModeId }); this.audio.play('ui'); } } });
-      p.text(m.name + (m.available ? '' : '  · coming soon'), 64, y + 35, 30, active ? '#1b1610' : CREAM);
-      p.text(`${m.pitch}  (${m.players})`, 64, y + 66, 20, active ? '#3a2e1c' : DIM);
-      y += cardH + 8;
+      p.text(m.name + (m.available ? '' : '  · coming soon'), 64, y + 28, 27, active ? '#1b1610' : CREAM);
+      p.text(`${m.pitch}  (${m.players})`, 64, y + 52, 18, active ? '#3a2e1c' : DIM);
+      y += cardH + 6;
     }
 
     // Settings for the selected mode.
@@ -178,14 +179,20 @@ export class LobbyTotem {
       y += 66;
     }
     if (s.mode === 'insuranceFraud') {
-      p.text(`${tunables.insuranceFraud.timeLimitSec / 60}-minute round. Biggest insurance bill wins.`, 50, y + 38, 28, CREAM);
-      p.text('Grab tools, smash insured objects, dodge security.', 50, y + 76, 24, DIM);
-      y += 100;
+      p.text(`${tunables.insuranceFraud.timeLimitSec / 60} minutes. Biggest insurance bill wins.`, 50, y + 38, 26, CREAM);
+      y += 56;
+    }
+    if (s.mode === 'hideSeek') {
+      p.text(`${tunables.hideSeek.timeLimitSec / 60} min. Hiders call out every ${tunables.hideSeek.pingEverySec / 60} min.`, 50, y + 38, 26, CREAM);
+      y += 56;
+    }
+    if (s.mode === 'fixExhibit') {
+      p.text(`Memorise ${tunables.fixExhibit.memorizeSec} s, fix it in ${tunables.fixExhibit.solveSec / 60} min. No copying!`, 50, y + 38, 26, CREAM);
+      y += 56;
     }
     if (s.mode === 'crowdControl') {
-      p.text('Five waves of tourists, no time limit.', 50, y + 38, 28, CREAM);
-      p.text('Touch anyone going the wrong way. Ropes and signs help.', 50, y + 76, 24, DIM);
-      y += 100;
+      p.text('Five waves of tourists. Turn the strays around.', 50, y + 38, 26, CREAM);
+      y += 56;
     }
 
     // Start + audio toggles at the bottom.

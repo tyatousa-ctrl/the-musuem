@@ -293,7 +293,7 @@ export class PartyRoom extends Room<{ state: PartyState }> {
     this.state.result = '';
     let i = 0;
     for (const p of this.state.players.values()) {
-      if (p.status === 'ko' || p.status === 'spectating') { p.status = 'active'; p.daze = 0; }
+      if (p.status !== 'active' && p.status !== 'reconnecting') { p.status = 'active'; p.daze = 0; }
       this.systems.objects.dropAll(p, feetPos(p));
       this.teleport(p, museum.spawns.lobby[i++ % museum.spawns.lobby.length]);
     }

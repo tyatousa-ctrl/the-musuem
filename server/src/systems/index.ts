@@ -1,5 +1,5 @@
 import {
-  drainDaze, groundHeightAt, resolveHit, roomAt, type Hand, type MuseumMap, type Team, type Tunables,
+  DESTRUCTIBLE_CENTER, drainDaze, groundHeightAt, resolveHit, roomAt, type Hand, type MuseumMap, type Team, type Tunables,
 } from '@museum/shared';
 import { AgentT, BreakableT, ObjectT, type PartyState, type PlayerT, PoseT } from '../state/schema.js';
 import type { ModeContext, ServerMode } from '../modes/types.js';
@@ -36,7 +36,8 @@ export class Systems {
 // ─── Grabbables ──────────────────────────────────────────────────────────────
 /** Height of an object's grab point above the floor when it rests (tall props are held by the top). */
 const REST_HEIGHT: Record<string, number> = { stanchion: 0.95, sign: 1.0, tool: 0.45, 'tool:ball': 0.25 };
-const restHeight = (kind: string, variant = '') => REST_HEIGHT[`${kind}:${variant}`] ?? REST_HEIGHT[kind] ?? 0.12;
+const restHeight = (kind: string, variant = '') =>
+  kind === 'piece' ? DESTRUCTIBLE_CENTER[variant] ?? 1 : REST_HEIGHT[`${kind}:${variant}`] ?? REST_HEIGHT[kind] ?? 0.12;
 
 export class ObjectSystem {
   /** Max distance from hand to object centre for a grab claim (lenient for latency). */
@@ -88,6 +89,7 @@ export class ObjectSystem {
     if (!o || player.status !== 'active') return false;
     if ((hand === 'left' ? player.heldLeft : player.heldRight) !== '') return false;
     if (o.holder && o.holder !== player.id) return false;
+    if (o.owner && o.owner !== player.id) return false;
     if (dist(poseVec(handPose(player, hand)), [o.x, o.y, o.z]) > ObjectSystem.GRAB_REACH) return false;
 
     const verdict = this.mode()?.canGrab?.(this.ctx(), player, o, hand) ?? 'allow';
@@ -255,6 +257,9 @@ export class CombatSystem {
 
   hit(attacker: PlayerT, target: PlayerT, kind: 'shove' | 'bonk', speed: number, dir: V3): boolean {
     if (attacker.id === target.id || target.status !== 'active') return false;
+    // A mode may take over contact between players (Hide and Seek tags instead of shoving).
+    const verdict = this.mode()?.onPlayerHit?.(this.ctx(), attacker, target);
+    if (verdict !== undefined) return verdict;
     if (attacker.team && attacker.team === target.team) return false; // no friendly fire
     const now = Date.now();
     const holding = attacker.heldLeft !== '' || attacker.heldRight !== '';

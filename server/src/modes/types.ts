@@ -58,6 +58,8 @@ export interface ServerMode {
   breakableDamage?(ctx: ModeContext, player: PlayerT, b: BreakableT, hand: Hand): number;
   onBreakableDamaged?(ctx: ModeContext, player: PlayerT, b: BreakableT, damage: number): void;
   onKo?(ctx: ModeContext, player: PlayerT, pos: [number, number, number]): void;
+  /** Player-to-player contact (shove/bonk claims). Return a boolean to replace combat; undefined to let combat run. */
+  onPlayerHit?(ctx: ModeContext, attacker: PlayerT, target: PlayerT): boolean | undefined;
   /** Respawn delay override in seconds (e.g. short-handed teams). */
   respawnDelaySec?(ctx: ModeContext, player: PlayerT): number;
 }

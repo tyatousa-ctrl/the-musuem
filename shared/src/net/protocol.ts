@@ -2,10 +2,10 @@
 
 export const ROOM_NAME = 'party';
 
-export type ModeId = 'tour' | 'ctr' | 'artifactHunt' | 'crowdControl' | 'insuranceFraud';
+export type ModeId = 'tour' | 'ctr' | 'artifactHunt' | 'crowdControl' | 'insuranceFraud' | 'hideSeek' | 'fixExhibit';
 export type Phase = 'lobby' | 'countdown' | 'playing' | 'roundEnd';
 export type Team = '' | 'A' | 'B';
-export type PlayerStatus = 'active' | 'ko' | 'held' | 'spectating' | 'reconnecting';
+export type PlayerStatus = 'active' | 'ko' | 'held' | 'blind' | 'spectating' | 'reconnecting';
 export type Hand = 'left' | 'right';
 
 export interface ModeInfo {
@@ -22,6 +22,8 @@ export const MODE_CATALOG: ModeInfo[] = [
   { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: true },
   { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: true },
   { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '1–4 · FFA', available: true },
+  { id: 'hideSeek', name: 'Hide and Seek', pitch: 'Hide anywhere. Every two minutes, you make a sound.', players: '2–4', available: true },
+  { id: 'fixExhibit', name: 'Fix the Exhibit', pitch: 'Memorise the room, then put it back together.', players: '1–4 · solo scores', available: true },
   { id: 'tour', name: 'Free Tour', pitch: 'A timed wander. Explore, practise, mess about.', players: '1–4', available: true },
 ];
 
@@ -75,6 +77,10 @@ export interface ServerEvents {
   smash: { id: string; pos: [number, number, number]; stage: number; variant: string };
   /** Insurance Fraud: a player earned insured damage (thousands of dollars). */
   payout: { playerId: string; amount: number; pos: [number, number, number] };
+  /** Hide and Seek: a hidden player calls out (positional), and a warning to hiders before it happens. */
+  hidePing: { playerId: string; pos: [number, number, number] };
+  /** Fix the Exhibit: one of your pieces clicked into place (sent only to its owner). */
+  snap: { id: string; pos: [number, number, number] };
   /** Crowd Control moments, for sounds and pop-ups. */
   crowd: { type: 'touched' | 'routed' | 'wrongExit' | 'breach' | 'filming'; effect?: string; pos: [number, number, number] };
   grabRejected: { objectId: string; hand: Hand };
