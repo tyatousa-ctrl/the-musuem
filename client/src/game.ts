@@ -20,6 +20,7 @@ import { Announcer, HOW_TO, LobbyTotem, PersonalMenu, WristHud, fmtTime } from '
 import { DesktopOverlay } from './ui/overlay';
 import { ElevatorPanels } from './ui/elevators';
 import { CornerTimer } from './ui/corner';
+import { MiniMap, type MapPlayer } from './ui/minimap';
 import { CLIENT_MODES, lobbyHud, type ClientMode, type ClientModeCtx } from './modes';
 
 declare global { interface Window { __museum?: { ready: boolean; game: Game } } }
@@ -100,10 +101,17 @@ export class Game {
 
     this.player = new Player(this.camera, this.renderer, this.world.collider);
     this.corner = new CornerTimer(this.camera);
+    this.minimap = new MiniMap(this.scene, () => { this.mapButtonPressed = true; });
     this.player.dynamicBoxes = this.doors.boxes; // breakables add theirs each frame
     this.scene.add(this.player.rig);
     this.setupHands();
     this.menu = new PersonalMenu(this.audio, this.player, () => void this.leaveParty(), () => this.onMenuClosed());
+    this.menu.hooks = {
+      openMap: () => { this.mapButtonPressed = true; },
+      isHost: () => !!this.net?.isHost(),
+      roundActive: () => this.net?.state?.phase === 'playing' || this.net?.state?.phase === 'countdown',
+      endRound: () => this.net?.send('endRound', {}),
+    };
     this.scene.add(this.menu.panel.mesh, this.announcer.panel.mesh);
     this.panels.panels.add(this.menu.panel);
     this.player.camera.add(this.perf.panel);
@@ -124,6 +132,7 @@ export class Game {
       net: this.net!, audio: this.audio, objects: this.objects, scene: this.scene, playerPos: () => this.player.feet,
       setAvatarsHidden: (h) => { this.avatars.hideAll = h; },
       setNameFilter: (f) => { this.avatars.hideName = f; },
+      visited: this.visited,
     };
 
     // VR entry button; audio starts on the same gesture (brief §10).
@@ -303,6 +312,7 @@ export class Game {
     this.totem?.update();
     this.announcer.update();
     this.updateHud(xr);
+    this.updateMap(dt, a, xr, head);
     this.panels.update(xr
       ? this.controllers.map((c) => ({ origin: c.userData.hand ? c : null, select: a.uiSelect && (c.userData.hand === 'right' ? this.xrInput.raw.right.buttons[0] > 0.5 : this.xrInput.raw.left.buttons[0] > 0.5) }))
       : [this.desktop.locked ? { origin: null, select: a.uiSelect, camera: this.camera, ndc: new THREE.Vector2(0, 0) } : { origin: null, select: a.uiSelect && this.menu.open, camera: this.camera, ndc: this.mouseNdc }]);
@@ -352,6 +362,10 @@ export class Game {
 
   private viewPos = new THREE.Vector3();
   private corner!: CornerTimer;
+  private minimap!: MiniMap;
+  private mapButtonPressed = false;
+  /** Rooms this player has set foot in this session (Free Roam, the map). */
+  readonly visited = new Set<string>();
 
   /** Holding a tool of this variant in either hand. */
   private holding(variant: string) {
@@ -596,9 +610,9 @@ export class Game {
       if (phase === 'countdown' && !this.countdownShown) {
         this.countdownShown = true;
         const lines = HOW_TO[s.mode as ModeId] ?? [];
-        this.overlay.card(lines, 5000);
+        this.overlay.card(lines, 12000);
         // In VR the card's lines arrive as world-space announcements; desktop has the DOM card.
-        if (this.renderer.xr.isPresenting) lines.forEach((l, i) => setTimeout(() => this.announcer.show(l, 'info'), i * 1700));
+        if (this.renderer.xr.isPresenting) lines.forEach((l, i) => setTimeout(() => this.announcer.show(l, 'info'), i * 2600));
       }
       if (phase !== 'countdown') this.countdownShown = false;
       this.audio.intensity = phase === 'playing' ? 1 : 0;
@@ -606,6 +620,27 @@ export class Game {
     }
     if (this.mode) this.mode.update(this.modeCtx, dt);
   }
+
+  /** The map: one button opens and closes it (M / on-screen button / left X). */
+  private updateMap(dt: number, a: Actions, xr: boolean, head: THREE.Vector3) {
+    if ((a.mapToggle && (this.playing || xr)) || this.mapButtonPressed) { this.minimap.toggle(xr, this.camera); this.audio.play('ui'); }
+    this.mapButtonPressed = false;
+    const feet = this.player.feet;
+    const room = roomAt(museum, head.x, feet.y + 1, head.z);
+    if (room && !room.open) this.visited.add(room.id);
+    this.minimap.showButton(this.playing && !xr && !this.spectateFlag());
+    if (!this.minimap.open) { this.minimap.update(dt, xr, [], this.visited); return; }
+    this.camera.getWorldDirection(tmpDir);
+    const players: MapPlayer[] = [{ x: head.x, z: head.z, feetY: feet.y, yaw: Math.atan2(-tmpDir.x, -tmpDir.z), name: 'You', me: true }];
+    this.net?.state?.players?.forEach((p: NetState, id: string) => {
+      if (id === this.net!.playerId || p.status === 'spectating') return;
+      if (this.avatars.hideAll || this.avatars.hideName?.(id)) return; // modes that hide players hide them here too
+      players.push({ x: p.head.px, z: p.head.pz, feetY: p.feetY, name: p.name, color: p.team === 'A' ? '#f2cf6a' : p.team === 'B' ? '#6fe0b4' : '#9fd0ff' });
+    });
+    this.minimap.update(dt, xr, players, this.visited);
+  }
+
+  private spectateFlag() { return !!flags.cam; }
 
   private updateHud(xr: boolean) {
     const s = this.net?.state;

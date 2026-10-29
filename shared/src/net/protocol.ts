@@ -24,7 +24,7 @@ export const MODE_CATALOG: ModeInfo[] = [
   { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '1–4 · FFA', available: true },
   { id: 'hideSeek', name: 'Hide and Seek', pitch: 'Hide anywhere. Every two minutes, you make a sound.', players: '2–4', available: true },
   { id: 'fixExhibit', name: 'Fix the Exhibit', pitch: 'Memorise the room, then put it back together.', players: '1–4 · solo scores', available: true },
-  { id: 'tour', name: 'Free Tour', pitch: 'A timed wander. Explore, practise, mess about.', players: '1–4', available: true },
+  { id: 'tour', name: 'Free Roam', pitch: 'No timer, no rules. Wander every gallery at your own pace.', players: '1–4', available: true },
 ];
 
 export interface JoinOptions {

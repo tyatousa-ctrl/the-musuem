@@ -17,6 +17,7 @@ export interface Actions {
   shovePressed: boolean;                       // edge (desktop)
   grabLeftPressed: boolean; grabRightPressed: boolean; // edges (desktop toggles)
   menuToggle: boolean;      // edge
+  mapToggle: boolean;       // edge
   uiSelect: boolean;        // edge
   perfToggle: boolean;      // edge
 }
@@ -26,7 +27,7 @@ export const BINDINGS = {
     forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
     sprint: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'],
     grabRight: ['KeyE'], grabLeft: ['KeyQ'], shove: ['KeyF'],
-    menu: ['Escape', 'Tab'], perf: ['F3', 'Backquote'],
+    menu: ['Escape', 'Tab'], perf: ['F3', 'Backquote'], map: ['KeyM'],
   },
   mouse: { useRight: 0, uiSelect: 0 },
   /** xr-standard gamepad mapping: button indices and axes. */
@@ -90,6 +91,7 @@ export class DesktopInput {
     this.forceUse = false;
     out.uiSelect = this.mousePressed;
     out.menuToggle = this.edge(k.menu);
+    out.mapToggle = this.edge(k.map);
     out.perfToggle = this.edge(k.perf);
     this.pressed.clear();
     this.mousePressed = false;
@@ -100,7 +102,7 @@ export function emptyActions(): Actions {
   return {
     move: new THREE.Vector2(), turn: 0, snapTurn: 0, lookDelta: new THREE.Vector2(), sprint: false, crouch: false,
     grabLeft: false, grabRight: false, useLeft: false, useRight: false, useRightPressed: false, shovePressed: false,
-    grabLeftPressed: false, grabRightPressed: false, menuToggle: false, uiSelect: false, perfToggle: false,
+    grabLeftPressed: false, grabRightPressed: false, menuToggle: false, mapToggle: false, uiSelect: false, perfToggle: false,
   };
 }
 
@@ -121,7 +123,7 @@ export class XRInput {
   read(session: XRSession | null, dt: number, out: Actions) {
     out.move.set(0, 0); out.turn = 0; out.snapTurn = 0;
     out.grabLeft = out.grabRight = out.useLeft = out.useRight = false;
-    out.menuToggle = false; out.uiSelect = false; out.sprint = false;
+    out.menuToggle = false; out.mapToggle = false; out.uiSelect = false; out.sprint = false;
     if (!session) return;
     const b = BINDINGS.xr;
     for (const src of session.inputSources) {
@@ -147,6 +149,7 @@ export class XRInput {
           if (this.yHeld >= b.menuHoldSec && !this.yFired) { out.menuToggle = true; this.yFired = true; }
         } else { this.yHeld = 0; this.yFired = false; }
         if (edge(b.trigger)) out.uiSelect = true;
+        if (edge(b.ax)) out.mapToggle = true; // X opens and closes the map
       } else {
         out.turn = Math.abs(ax) > 0.2 ? ax : 0;
         if (Math.abs(ax) > 0.7 && this.snapArmed) { out.snapTurn = ax > 0 ? 1 : -1; this.snapArmed = false; }

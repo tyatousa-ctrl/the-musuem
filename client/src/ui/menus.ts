@@ -17,10 +17,13 @@ export function inviteLink(slug: string) { return `${location.origin}/party/${sl
 
 // ─── Personal menu (brief §13.1) ────────────────────────────────────────────
 export class PersonalMenu {
-  readonly panel = new Panel(0.62, 0.78, 700);
+  readonly panel = new Panel(0.62, 0.98, 700);
   open = false;
   private confirmLeave = false;
   private anchor = new THREE.Vector3();
+
+  /** Hooks for the map and the host's End round button (set by the game). */
+  hooks = { openMap: () => {}, isHost: () => false, roundActive: () => false, endRound: () => {} };
 
   constructor(private audio: AudioEngine, private player: Player, private onLeave: () => void, private onClose: () => void) {
     this.panel.mesh.visible = false;
@@ -68,19 +71,23 @@ export class PersonalMenu {
     const a = this.audio;
     let y = 110;
     const row = 78, h = 64, x = 40, w = W - 80;
-    p.button('resume', 'Resume', x, y, w, h, { onClick: () => this.close() }); y += row;
+    p.button('resume', 'Resume', x, y, w / 2 - 8, h, { onClick: () => this.close() });
+    p.button('map', 'Map', x + w / 2 + 8, y, w / 2 - 8, h, { onClick: () => { this.close(); this.hooks.openMap(); } }); y += row;
     p.button('music', `Music: ${a.musicOn ? 'On' : 'Off'}`, x, y, w - 170, h, { active: a.musicOn, onClick: () => { a.setMusic(!a.musicOn); p.dirty = true; } });
     p.button('musicDown', '−', x + w - 160, y, 75, h, { onClick: () => { a.nudgeMusic(-0.1); p.dirty = true; } });
-    p.button('musicUp', '+', x + w - 75, y, 75, h, { onClick: () => { a.nudgeMusic(0.1); p.dirty = true; } }); y += row;
-    p.text(`volume ${Math.round(a.musicVol * 100)}%`, x + 16, y - 6, 22, DIM);
+    p.button('musicUp', '+', x + w - 75, y, 75, h, { onClick: () => { a.nudgeMusic(0.1); p.dirty = true; } }); y += h + 26;
+    p.text(`music volume ${Math.round(a.musicVol * 100)}%`, x + 16, y - 6, 20, DIM);
     y += 14;
-    p.button('fx', `Sound FX: ${a.fxOn ? 'On' : 'Off'}`, x, y, w - 170, h, { active: a.fxOn, onClick: () => { a.setFx(!a.fxOn); p.dirty = true; } });
+    p.button('fx', `Effects: ${a.fxOn ? 'On' : 'Off'}`, x, y, w - 170, h, { active: a.fxOn, onClick: () => { a.setFx(!a.fxOn); p.dirty = true; } });
     p.button('fxDown', '−', x + w - 160, y, 75, h, { onClick: () => { a.nudgeFx(-0.1); p.dirty = true; } });
-    p.button('fxUp', '+', x + w - 75, y, 75, h, { onClick: () => { a.nudgeFx(0.1); p.dirty = true; } }); y += row;
-    p.text(`volume ${Math.round(a.fxVol * 100)}%`, x + 16, y - 6, 22, DIM);
+    p.button('fxUp', '+', x + w - 75, y, 75, h, { onClick: () => { a.nudgeFx(0.1); p.dirty = true; } }); y += h + 26;
+    p.text(`effects volume ${Math.round(a.fxVol * 100)}%`, x + 16, y - 6, 20, DIM);
     y += 14;
     p.button('vignette', `Comfort vignette: ${this.player.vignetteOn ? 'On' : 'Off'}`, x, y, w, h, { active: this.player.vignetteOn, small: true, onClick: () => { this.player.vignetteOn = !this.player.vignetteOn; savePref('vignette', this.player.vignetteOn); p.dirty = true; } }); y += row;
     p.button('recenter', 'Recenter', x, y, w, h, { onClick: () => { this.player.recenter(); this.close(); } }); y += row;
+    if (this.hooks.isHost() && this.hooks.roundActive()) {
+      p.button('endRound', 'End round · back to lobby', x, y, w, h, { onClick: () => { this.hooks.endRound(); this.close(); } }); y += row;
+    }
     if (!this.confirmLeave) p.button('leave', 'Leave party', x, y, w, h, { onClick: () => { this.confirmLeave = true; p.dirty = true; } });
     else {
       p.button('leaveYes', 'Really leave', x, y, w / 2 - 8, h, { active: true, onClick: () => this.onLeave() });
@@ -171,7 +178,7 @@ export class LobbyTotem {
       y += 66;
     };
     if (s.mode === 'ctr') { setting('Captures to win', 'ctrScoreLimit', s.ctrScoreLimit, 1); setting('Time limit (min)', 'ctrTimeMin', s.ctrTimeMin, 1); }
-    if (s.mode === 'tour') setting('Tour length (min)', 'tourTimeMin', s.tourTimeMin, 1);
+    if (s.mode === 'tour') { p.text('No timer. End it from your menu (Tab / ☰) when you are done.', 50, y + 38, 26, CREAM); y += 56; }
     if (s.mode === 'artifactHunt') {
       setting('Time limit (min)', 'huntTimeMin', s.huntTimeMin, 1);
       p.text(`Play as: ${s.huntTeams ? 'Teams' : 'Free-for-all'}`, 50, y + 38, 28, CREAM);
@@ -273,9 +280,51 @@ export class Announcer {
   }
 }
 
-/** Five-second, three-line how-to-play card shown during the countdown (brief §13.4). */
+/**
+ * How to play, shown from the countdown into the first seconds of every round
+ * (brief §13.4): a title, the goal, and the controls on desktop and in VR.
+ */
 export const HOW_TO: Partial<Record<ModeId, string[]>> = {
-  ctr: ['Smash the enemy case: two hard punches or hits.', 'Grab their relic and carry it to your glowing ring.', 'You can only score while your own relic is home.'],
-  artifactHunt: ['Artifacts are hidden all over the museum.', 'Grab one and carry it to the Registrar\'s Desk in the lobby.', 'Your wrist says Warm or Cold. Hidden ones are worth more.'],
-  tour: ['Explore the museum at your own pace.', 'Try the stairs, the catwalks and the service tunnels.', 'Pick things up. Throw them. Nobody is watching.'],
+  ctr: [
+    'CAPTURE THE RELIC · teams',
+    "Smash the other team's glass case (two hard hits), grab their relic and carry it into your own glowing ring.",
+    'You can only score while your own relic is home. Shove the carrier to make them drop it; touch your dropped relic to send it home.',
+    'Desktop: click punch · E grab · F shove   ·   VR: swing to punch · grip to grab',
+  ],
+  artifactHunt: [
+    'ARTIFACT HUNT',
+    '12 artifacts are hidden around the museum: terracotta 1 point, gold 3, violet crown 5.',
+    'Your HUD (wrist in VR) says Cold, Warm, Hot or Burning as you get close.',
+    'Carry each one into the gold ring at the information desk.   Desktop: E grab   ·   VR: grip',
+  ],
+  crowdControl: [
+    'CROWD CONTROL · co-op security',
+    'Tourists should follow the gold floor arrows. Red marker = wrong way · amber = heading into STAFF ONLY · purple = filming.',
+    "Touch them to turn them around. Turn a group's flag-holder and the whole group follows.",
+    'Brass posts make velvet ropes; signs send strays back.   Desktop: click a tourist · E carry   ·   VR: touch · grip',
+  ],
+  insuranceFraud: [
+    'INSURANCE FRAUD · biggest bill wins',
+    'Everything has a price tag. Vases break bare-handed; busts and paintings need a tool; statues need a heavy tool.',
+    'The big three (Mammoth, Giant Canvas, Lion Gate) have 3 anchors to loosen first. At 4 security stars a guard chases you.',
+    'Desktop: E grab a tool · click to smash   ·   VR: grip a tool and swing',
+  ],
+  hideSeek: [
+    'HIDE AND SEEK',
+    'One seeker counts with eyes closed while everyone else hides anywhere in the museum.',
+    'Every 2 minutes each hider calls out "cuck-oo". Seekers: follow the sound. Hiders: move after you call!',
+    'Tag a hider to make them a seeker.   Desktop: click them   ·   VR: touch them',
+  ],
+  fixExhibit: [
+    'FIX THE EXHIBIT',
+    'Memorise the room: you have 10 seconds (timer in the bottom-right corner). Then your eyes close and everything gets moved.',
+    'Put every piece back in 2 minutes. Drop it within a foot of its spot and it clicks into place.',
+    'Desktop: E pick up · E put down   ·   VR: grip. Only you can see your pieces.',
+  ],
+  tour: [
+    'FREE ROAM',
+    'No timer, no rules: wander every gallery at your own pace. The HUD counts the rooms you have visited.',
+    'Map: press M (or the Map button) on desktop, X on the left controller in VR. Press it again to close.',
+    'Upstairs: the Grand Staircase, the catwalk stairs, or the elevators (E / the panel). The host ends it from the menu.',
+  ],
 };

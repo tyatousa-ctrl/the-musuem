@@ -97,3 +97,9 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 
 **The totem shows seven games.** The cards are slimmer, and each mode's settings line is a single line, so all seven games and the selected game's settings fit above the Start button.
 
+**Free Roam replaces Free Tour.** The timed tour became an untimed wander, as requested. The mode id stays `tour`, so nothing else changes. The HUD names the room you're in and counts the rooms you've visited (34). The map shades visited rooms. Untimed rounds (Free Roam, Crowd Control) need a way out, so the host's menu now has an "End round · back to lobby" button.
+
+**The map is one toggle on three inputs.** M on desktop, the on-screen Map button (top left), and X on the left controller in VR (X was unused) all open and close the map. "Map" in the menu opens it too. The map shows all three floors side by side, north up with the entrance on the right, and highlights the floor you're on. On a balcony or catwalk you are on the upper floor, inside the hall below. The front plaza counts as the ground floor. In VR the map floats in front of you where you opened it; on desktop it's a screen overlay. While mouse-look has the pointer locked, the browser sends every click to the game, so the on-screen button works once the cursor is free (Esc), and M works any time. The button's label says so. In Hide and Seek, hiders don't appear on a seeker's map, and in Fix the Exhibit other players don't appear.
+
+**How-to cards.** Every mode now has a card shown from the countdown into the first seconds of play. It gives the title, the goal in one line, the key rule, and the controls on desktop and in VR. Previously only three modes had one.
+

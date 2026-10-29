@@ -1,8 +1,9 @@
 import type { RoundResult, ServerMode } from '../types.js';
 
 /**
- * Free Tour: the stub mode from milestone M4. A timed wander with no rules,
- * useful for practising movement and for testing the round flow.
+ * Free Roam: no timer and no rules. Walk every gallery at your own pace; the
+ * HUD tracks the rooms you've visited and the map (M / left X) shows where you
+ * are. The host ends it from the menu. (Mode id 'tour' kept from M4.)
  */
 export function createTourMode(): ServerMode {
   let over: RoundResult | null = null;
@@ -11,12 +12,12 @@ export function createTourMode(): ServerMode {
     minPlayers: 1,
     maxPlayers: 4,
     joinPolicy: 'immediate',
-    timeLimitSec: (ctx) => ctx.state.tourTimeMin * 60,
+    timeLimitSec: () => 0, // untimed: the host ends it from the menu
     onEnter(ctx) {
       over = null;
       ctx.systems.teams.clear();
       ctx.players().forEach((p, i) => ctx.teleport(p, ctx.map.spawns.lobby[i % ctx.map.spawns.lobby.length]));
-      ctx.announce('Free Tour — explore the museum!', 'info');
+      ctx.announce('Free Roam: wander anywhere you like. Open the map to see where you are.', 'info');
     },
     onPlayerJoin(ctx, p) { ctx.teleport(p, this.spawnFor(ctx, p)); },
     onPlayerLeave() {},

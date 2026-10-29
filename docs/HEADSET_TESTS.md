@@ -103,3 +103,10 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Moving pieces.** Pick up a painting on its easel and a statue. Is the grab point (the middle of the piece) natural? Do they click into place within about a foot?
 - [ ] **No copying.** With two players, confirm you cannot see the other player or their pieces.
 
+## Map and Free Roam
+
+- [ ] **Map button.** Press X on the left controller: the map appears in front of you; press X again to close it. Is it readable at that distance? Does it block anything awkwardly?
+- [ ] **Floors.** Go up the Grand Staircase and open the map: is the upper floor highlighted, and does the arrow face the way you face?
+- [ ] **How-to cards.** In VR the card arrives as a few announcements: are they readable before the round gets going?
+- [ ] **Free Roam.** Walk every gallery; does the room counter reach 34? The host can end it from the menu.
+

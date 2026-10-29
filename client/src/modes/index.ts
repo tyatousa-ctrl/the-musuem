@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { heatWord, hintHeat, museum, type ModeId, type Tier } from '@museum/shared';
+import { heatWord, hintHeat, museum, roomAt, type ModeId, type Tier } from '@museum/shared';
 import type { Net, NetState } from '../multiplayer/net';
 import type { AudioEngine } from '../audio/audio';
 import type { WorldObjects } from '../interaction/objects';
@@ -20,6 +20,8 @@ export interface ClientModeCtx {
   /** Hide all other players, or just some name tags. */
   setAvatarsHidden: (hidden: boolean) => void;
   setNameFilter: (hide: ((id: string) => boolean) | null) => void;
+  /** Rooms you have set foot in this session. */
+  visited: Set<string>;
 }
 
 export interface ClientMode {
@@ -64,10 +66,21 @@ const ctr: ClientMode = {
   },
 };
 
+/** Free Roam: where you are and how much of the museum you've seen. */
+const GALLERIES = museum.rooms.filter((r) => !r.open);
 const tour: ClientMode = {
   id: 'tour',
   enter() {}, exit() {}, update() {},
-  hud(ctx) { return ['Free Tour', timer(ctx), '']; },
+  hud(ctx) {
+    const p = ctx.playerPos();
+    const room = roomAt(museum, p.x, p.y + 1, p.z);
+    const seen = GALLERIES.filter((r) => ctx.visited.has(r.id)).length;
+    return [
+      'Free Roam',
+      room && !room.open ? `You're in: ${room.name}` : 'Outside on Fifth Avenue',
+      seen === GALLERIES.length ? `You've visited every room! (${seen})` : `${seen} of ${GALLERIES.length} rooms visited · M for the map`,
+    ];
+  },
 };
 
 // ─── Artifact Hunt ───────────────────────────────────────────────────────────

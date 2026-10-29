@@ -159,6 +159,16 @@ Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded v
 | Fix the Exhibit: no copying. Every player has a private set of pieces (only the owner sees or moves them), a different jumble, and other players are invisible during the round; late joiners spectate | bot, browser |
 | Countdown in the bottom-right of your view (desktop screen corner; VR card fixed low-right in the headset view) | browser (desktop) |
 
+### Playtest pass, Free Roam, museum map (requested)
+
+| Item | Status |
+|---|---|
+| Played every mode on desktop controls in real browsers: two players joining, walking, sprinting, stairs, elevators, Capture the Relic, Artifact Hunt, Crowd Control, Insurance Fraud, Hide and Seek, Fix the Exhibit | browser (all `tools/smoke/*`) |
+| How-to-play card for every mode at the start of each round (title, goal, desktop and VR controls), 12 s | browser (`roam-map-desktop.ts`) |
+| Free Roam (was Free Tour): no timer; HUD names your room and counts rooms visited; host ends it from the menu | browser |
+| Museum map: all three floors side by side, your floor highlighted ("YOU ARE HERE"), your position and facing, friends, rooms visited, stairs, elevators, doorways. One button opens it and the same button closes it: M or the on-screen Map button (desktop), X on the left controller (VR), or Map in the menu | browser (desktop), unit; VR not verified in headset |
+| Menu: Map button; End round · back to lobby (host, during a round); fixed overlapping volume labels and clipped buttons | browser |
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.

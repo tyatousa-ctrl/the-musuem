@@ -16,7 +16,7 @@ const CSS = `
 #hud b{color:#e9c46a;font-size:19px}
 #xh{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(243,234,217,.85);box-shadow:0 0 0 2px rgba(0,0,0,.35);z-index:9;pointer-events:none}
 #hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);color:#f3ead9;opacity:.65;font:13px Georgia,serif;z-index:9;pointer-events:none;text-align:center;white-space:nowrap}
-#card{position:fixed;left:50%;top:58%;transform:translateX(-50%);background:rgba(20,16,12,.88);border:1px solid #c9a24f;border-radius:14px;padding:14px 22px;color:#f3ead9;font:17px/1.6 Georgia,serif;z-index:11;display:none;max-width:min(560px,90vw)}
+#card{position:fixed;left:50%;top:60%;transform:translateX(-50%);background:rgba(20,16,12,.88);border:1px solid #c9a24f;border-radius:14px;padding:14px 22px;color:#f3ead9;font:17px/1.6 Georgia,serif;z-index:11;display:none;max-width:min(680px,92vw);pointer-events:none}
 #results{position:fixed;left:50%;top:32%;transform:translateX(-50%);font:600 30px Georgia,serif;color:#e9c46a;text-shadow:0 2px 10px #000;z-index:11;pointer-events:none;text-align:center}
 @media (max-width:600px){#hint{display:none}}
 `;
@@ -31,6 +31,7 @@ export class DesktopOverlay {
   private cardEl: HTMLDivElement;
   private results: HTMLDivElement;
   private lastHud = '';
+  private cardTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(onPlay: () => void, private hidden: boolean) {
     const style = document.createElement('style');
@@ -41,13 +42,13 @@ export class DesktopOverlay {
     this.root.innerHTML = `<div><h1>THE MUSEUM</h1><div class="sub">After hours. Bring friends. Touch everything.</div>
       <div class="row"><button class="play">Play on desktop</button><div class="vr"></div></div>
       <div class="status"></div>
-      <div class="keys">WASD move · mouse look · Shift sprint · C crouch<br>E / Q grab with right / left hand · click to punch or throw · F shove · Tab menu</div></div>`;
+      <div class="keys">WASD move · mouse look · Shift sprint · C crouch<br>E / Q grab with right / left hand · click to punch or throw · F shove · M map · Tab menu</div></div>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector('.status')!;
     this.vrSlot = this.root.querySelector('.vr')!;
     this.root.querySelector<HTMLButtonElement>('.play')!.onclick = onPlay;
     this.hudEl = el('hud'); this.xh = el('xh'); this.hint = el('hint'); this.cardEl = el('card'); this.results = el('results');
-    this.hint.textContent = 'E grab · click punch/throw · F shove · Tab menu';
+    this.hint.textContent = 'E grab · click punch/throw · F shove · M map · Tab menu';
     if (hidden) this.hideAll();
   }
 
@@ -75,9 +76,11 @@ export class DesktopOverlay {
 
   card(lines: string[], ms: number) {
     if (this.hidden || !lines.length) return;
-    this.cardEl.innerHTML = lines.map(esc).join('<br>');
+    // The first line is the title.
+    this.cardEl.innerHTML = lines.map((l, i) => (i === 0 ? `<b style="color:#e9c46a;letter-spacing:.08em">${esc(l)}</b>` : esc(l))).join('<br>');
     this.cardEl.style.display = 'block';
-    setTimeout(() => (this.cardEl.style.display = 'none'), ms);
+    clearTimeout(this.cardTimer);
+    this.cardTimer = setTimeout(() => (this.cardEl.style.display = 'none'), ms);
   }
 }
 
