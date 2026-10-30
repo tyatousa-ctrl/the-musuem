@@ -12,6 +12,8 @@ const tmpV2 = new THREE.Vector3();
 const headWorld = new THREE.Vector3();
 const fwd = new THREE.Vector3();
 const right = new THREE.Vector3();
+/** Longest single movement step before colliding again (under the capsule radius, so walls can't be skipped), m. */
+const MAX_STEP = 0.2;
 
 /**
  * The local player rig (brief §11). `rig` sits at the feet and carries the
@@ -130,6 +132,19 @@ export class Player {
   }
 
   /** A ledge just ahead (top within reach, room to stand on it), as the point to stand on. */
+  /** Collide a capsule under the head. In VR the head can be off-centre in the rig. */
+  private collide(xr: boolean) {
+    const p = tunables.player;
+    this.headPosition(headWorld);
+    const offX = headWorld.x - this.rig.position.x, offZ = headWorld.z - this.rig.position.z;
+    tmpV2.set(headWorld.x, this.rig.position.y, headWorld.z);
+    const headHeight = xr ? Math.max(0.9, this.camera.position.y + 0.1) : this.camera.position.y + 0.12;
+    const { grounded } = resolveCapsule(this.bvh, tmpV2, p.radius, headHeight, this.dynamicBoxes);
+    this.rig.position.set(tmpV2.x - offX, tmpV2.y, tmpV2.z - offZ);
+    this.grounded = grounded;
+    if (grounded) this.velocity.y = Math.max(0, this.velocity.y);
+  }
+
   private ledgeAhead(feet: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
     // Look a little way ahead at a few distances (a thin wall's top is just past its face).
     for (const d of [0.5, 0.7, 0.95]) {
@@ -234,7 +249,14 @@ export class Player {
     } else if (this.desktopClimbing) {
       this.velocity.set(0, p.climbSpeed, 0);
       this.rig.position.addScaledVector(this.velocity, dt);
-    } else this.rig.position.addScaledVector(this.velocity, dt);
+    } else {
+      // Fast enough to cross a wall in one frame at a sprint: move in short steps, colliding between them.
+      const steps = Math.max(1, Math.ceil(Math.hypot(this.velocity.x, this.velocity.z) * dt / MAX_STEP));
+      for (let i = 0; i < steps; i++) {
+        this.rig.position.addScaledVector(this.velocity, dt / steps);
+        if (i < steps - 1) this.collide(xr);
+      }
+    }
 
     // Reaching the top of something while jumping or climbing: pull up onto it.
     if ((!this.grounded || this.climbing) && (a.move.y > 0.3 || this.climbing) && move) {
@@ -250,20 +272,12 @@ export class Player {
     this.frozen = Math.max(0, this.frozen - dt);
     this.knockFade = Math.max(0, this.knockFade - dt);
 
-    // Collide a capsule under the head. In VR the head can be off-centre in the rig.
-    this.headPosition(headWorld);
-    const offX = headWorld.x - this.rig.position.x, offZ = headWorld.z - this.rig.position.z;
-    tmpV2.set(headWorld.x, this.rig.position.y, headWorld.z);
-    const headHeight = xr ? Math.max(0.9, this.camera.position.y + 0.1) : this.camera.position.y + 0.12;
-    const { grounded } = resolveCapsule(this.bvh, tmpV2, p.radius, headHeight, this.dynamicBoxes);
-    this.rig.position.set(tmpV2.x - offX, tmpV2.y, tmpV2.z - offZ);
-    this.grounded = grounded;
-    if (grounded) this.velocity.y = Math.max(0, this.velocity.y);
+    this.collide(xr);
 
     // Fell out of the world (or a bad teleport): return to the last safe spot.
     if (this.rig.position.y < -20 || !roomAt(museum, headWorld.x, this.rig.position.y + 1, headWorld.z)) {
       if (this.rig.position.y < -20) this.rig.position.copy(this.lastSafe);
-    } else if (grounded) this.lastSafe.copy(this.rig.position);
+    } else if (this.grounded) this.lastSafe.copy(this.rig.position);
 
     // Head poking into a wall: fade to black and nudge the rig back (VR only; desktop can't).
     let headFade = 0;

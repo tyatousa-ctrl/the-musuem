@@ -118,3 +118,7 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Guards.** Are the vision cones on the floor readable from standing height? Can you sneak behind a guard and smash something without being chased?
 - [ ] **Breaking the museum.** Slash a painting upstairs (the price tag is by the frame) and knock over a knight with the sledgehammer.
 
+## Faster walk and run
+
+- [ ] **Walk 4.2 m/s.** Is smooth walking comfortable with the vignette?
+- [ ] **Run 12.6 m/s.** Click the stick to run down the Great Hall. Any nausea? Do you stop cleanly at walls and rails?

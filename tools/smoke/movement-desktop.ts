@@ -33,7 +33,9 @@ const tp = (x: number, y: number, z: number, yaw: number) => page.evaluate(`${G}
 await tp(30, 0, 20, 0);
 await page.waitForTimeout(800);
 await page.keyboard.down('KeyW');
-await page.waitForTimeout(1200);
+// The first frames after loading can be slow in a software renderer: wait until moving.
+await page.waitForFunction(`Math.hypot(${G}.player.velocity.x, ${G}.player.velocity.z) > 0.5`, undefined, { timeout: 15000 });
+await page.waitForTimeout(400);
 const walk = await speed();
 await page.keyboard.down('ShiftLeft');
 await page.waitForTimeout(1200);
@@ -41,8 +43,22 @@ const sprint = await speed();
 await page.keyboard.up('ShiftLeft');
 await page.keyboard.up('KeyW');
 console.log(`walk ${walk.toFixed(2)} m/s, sprint ${sprint.toFixed(2)} m/s`);
-if (Math.abs(walk - 2.6) > 0.2) fail(`walk speed ${walk}`);
-if (Math.abs(sprint - 4.2) > 0.2) fail(`sprint speed ${sprint}`);
+if (Math.abs(walk - 4.2) > 0.3) fail(`walk speed ${walk}`);
+if (Math.abs(sprint - 12.6) > 0.8) fail(`sprint speed ${sprint}`);
+
+// 1b. A full sprint into the Great Hall's east and west walls stops at them (no tunnelling at 12.6 m/s).
+for (const yaw of [Math.PI / 2, -Math.PI / 2]) {
+  await tp(36, 0, 4, yaw);
+  await page.waitForTimeout(500);
+  await page.keyboard.down('ShiftLeft');
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(2500);
+  await page.keyboard.up('KeyW');
+  await page.keyboard.up('ShiftLeft');
+  const [x] = await feet(), r = await room();
+  console.log(`sprint into wall (yaw ${yaw.toFixed(2)}): x ${x.toFixed(2)}, room ${r}`);
+  if (r !== 'greatHall' || x < 12 || x > 39) fail(`sprinted through a wall to x ${x} (${r})`);
+}
 
 // 2. Elevators: look at the floor button in the cab and press E; the doors close, the cab rises, we arrive.
 const button = (id: string, kind: string, floor: number) => page.evaluate(`(() => { const b = ${G}.elevators.buttons.find((x) => x.elevator === '${id}' && x.kind === '${kind}' && x.floor === ${floor}); return b.pos.toArray(); })()`) as Promise<number[]>;

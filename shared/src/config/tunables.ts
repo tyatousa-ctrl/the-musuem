@@ -6,9 +6,9 @@
 export const tunables = {
   player: {
     /** Walking speed, m/s. */
-    walkSpeed: 2.6,
-    /** Sprint speed, m/s. */
-    sprintSpeed: 4.2,
+    walkSpeed: 4.2,
+    /** Sprint speed, m/s (three times the walk). */
+    sprintSpeed: 12.6,
     /** Snap-turn angle, degrees. */
     snapTurnDeg: 45,
     /** Smooth-turn speed when enabled, degrees/s. */
@@ -55,7 +55,7 @@ export const tunables = {
     /** Empty party kept alive, s. */
     emptyPartyGraceSec: 600,
     /** Max plausible head speed before the server rejects a pose, m/s. */
-    maxPoseSpeed: 12,
+    maxPoseSpeed: 16,
     maxPlayers: 4,
   },
   elevator: {
@@ -267,8 +267,8 @@ export const tunables = {
       upper: 1,
       patrolSpeed: 1.4,
       investigateSpeed: 2.2,
-      /** Chasing; you can outrun them at a sprint (4.2), not at a walk. */
-      chaseSpeed: 3.4,
+      /** Chasing; you can outrun them at a sprint (12.6), not at a walk (4.2). */
+      chaseSpeed: 5.5,
       /** Vision cone: range (m) and half-angle (degrees). Walls and exhibits block it. */
       sightRange: 12,
       sightHalfAngleDeg: 35,

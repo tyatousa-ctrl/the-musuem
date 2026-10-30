@@ -108,7 +108,7 @@ How each item was verified:
 | Stairs to floor 2: Grand Staircase, two Dinosaur Hall catwalk stairs, two court stairs | unit, browser (sprinted up the Grand Staircase to y 7.9) |
 | Four elevators (two in the Great Hall, two in the courts), server-validated teleport with a fade and a ding; button panel in VR, E on desktop | unit, bot, browser (up to 8 m and back down) |
 | Five route types between bases: fast 126 m; west 1.30×, east 1.32×, upper floor 1.44×, service 1.77× | `npm run measure-routes` |
-| Sprint: desktop Shift 4.2 m/s vs walk 2.6 m/s; VR stick-click toggle that stays on while moving | browser (measured speeds), unit (`client/test/xr-input.test.ts`) |
+| Sprint: desktop Shift (now 12.6 m/s vs walk 4.2 m/s, see below); VR stick-click toggle that stays on while moving | browser (measured speeds), unit (`client/test/xr-input.test.ts`) |
 | Budgets: every bookmark ≤ 150 draw calls (worst 142) | screenshot run (`docs/screens/perf.tsv`) |
 
 Not verified in headset.
@@ -206,6 +206,15 @@ Found and fixed during the pass:
 | Caught: locked in the cells downstairs (barred gates on the security office), free to move inside; the gates open when your time is up. The basement is otherwise open | bot, browser |
 | Everything breakable: every painting on the gallery walls (≈180, small price tags by each frame, upstairs included) and the exhibits (knights, statues, sculptures, cases, sarcophagi, skeletons, the temple…) | unit, browser |
 | Temple room to match the Met: the Temple of Dendur (Sackler Wing) from the reference photos | screenshot (`north.temple`, `north.dendur`) |
+
+### Faster walk and run (requested)
+
+| Item | Status |
+|---|---|
+| Walk 4.2 m/s (the old run speed), run 12.6 m/s (three times that) | browser (`movement-desktop.ts` measures both) |
+| Movement is split into steps of at most 0.2 m with a collision check between them, so a full run can't pass through a wall | browser (sprint into the Great Hall walls) |
+| Server's pose speed limit raised from 12 to 16 m/s so running isn't rejected as cheating | unit/bot suite passes; not tested on Render |
+| Insurance Fraud guards chase at 5.5 m/s (was 3.4): you still escape by running, not by walking | bot, browser (`fraud-desktop.ts`) |
 
 ## Known gaps and issues
 
