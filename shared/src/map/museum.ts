@@ -57,7 +57,7 @@ const rooms: Room[] = [
     acoustic: 'gallery',
   }))),
   // Bases.
-  { id: 'northCourt', name: 'Temple Court', style: 'courtNorth', x0: -60, x1: 39, z0: -76, z1: -50, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 22, x1: 26, z0: -73, z1: -61 }] },
+  { id: 'northCourt', name: 'The Temple of Dendur', style: 'courtNorth', x0: -60, x1: 39, z0: -76, z1: -50, floorY: 0, ceilY: 15, acoustic: 'court', floorHoles: [{ x0: 22, x1: 26, z0: -73, z1: -61 }] },
   { id: 'southCourt', name: 'Glass Court', style: 'courtSouth', x0: -60, x1: 39, z0: 50, z1: 76, floorY: 0, ceilY: 20, acoustic: 'court', floorHoles: [{ x0: 22, x1: 26, z0: 61, z1: 73 }] },
   // Service level.
   { id: 'stairN', name: 'North Service Stair', style: 'stairwell', x0: 22, x1: 26, z0: -73, z1: -61, floorY: -6, ceilY: 0, noCeiling: true, acoustic: 'service' },
@@ -178,7 +178,8 @@ const platforms: Platform[] = [
   { id: 'catLandE', room: 'dinoHall', x0: -8, x1: -5, z0: -50, z1: -46, y: F2, style: 'catwalk' },
   { id: 'catLandW', room: 'dinoHall', x0: -19, x1: -16, z0: 46, z1: 50, y: F2, style: 'catwalk' },
   // Courts: temple podium, mezzanines leading to the paintings upstairs.
-  { id: 'templePodium', room: 'northCourt', x0: 27, x1: 38.5, z0: -75.5, z1: -64, y: 1.2, solid: true, style: 'podium' },
+  // The Sackler Wing (after the Met): the temple's granite platform, its long axis parallel to the glass wall.
+  { id: 'dendurPlatform', room: 'northCourt', x0: -8, x1: 10, z0: -73, z1: -59, y: 1.0, solid: true, style: 'podium' },
   { id: 'mezzN', room: 'northCourt', x0: -60, x1: -30, z0: -54, z1: -50, y: F2, style: 'mezzanine' },
   { id: 'mezzS', room: 'southCourt', x0: -60, x1: -30, z0: 50, z1: 54, y: F2, style: 'mezzanine' },
   // Exterior terrace in front of the doors.
@@ -191,7 +192,7 @@ const stairs: Stair[] = [
   { id: 'catW', room: 'dinoHall', x0: -19, x1: -16, z0: 32, z1: 46, y0: 0, y1: F2, dir: '+z', style: 'metal' },
   { id: 'courtStairN', room: 'northCourt', x0: -30, x1: -16, z0: -54, z1: -50.5, y0: 0, y1: F2, dir: '-x', style: 'stone' },
   { id: 'courtStairS', room: 'southCourt', x0: -30, x1: -16, z0: 50.5, z1: 54, y0: 0, y1: F2, dir: '-x', style: 'stone' },
-  { id: 'templeSteps', room: 'northCourt', x0: 30, x1: 35, z0: -64, z1: -61.6, y0: 0, y1: 1.2, dir: '-z', style: 'stone' },
+  { id: 'dendurSteps', room: 'northCourt', x0: -2, x1: 6, z0: -59, z1: -56.6, y0: 0, y1: 1.0, dir: '-z', style: 'stone' },
   { id: 'svcStairN', room: 'stairN', x0: 22, x1: 26, z0: -73, z1: -61, y0: -6, y1: 0, dir: '-z', style: 'concrete' },
   { id: 'svcStairS', room: 'stairS', x0: 22, x1: 26, z0: 61, z1: 73, y0: -6, y1: 0, dir: '+z', style: 'concrete' },
   { id: 'frontSteps', room: 'exterior', x0: 42, x1: 50, z0: -16, z1: 16, y0: -2.4, y1: 0, dir: '-x', style: 'stone' },
@@ -322,12 +323,16 @@ const blocks: Block[] = [
   ...[20, 32].map((x, i) => B(`statueS${i}`, 'egyptN', 'statue', x, x + 1.2, -44.2, -43.6, 0, 3.0)),
 
   // North Court: temple, gateway, reflecting pool, relic pedestal, cover.
-  B('temple', 'northCourt', 'temple', 29, 37, -75, -69.5, 1.2, 8.2),
-  B('gateway', 'northCourt', 'temple', 31, 35, -66, -65, 1.2, 7, { variant: 'gate' }),
-  B('pool', 'northCourt', 'pool', 6, 18, -71, -64, 0, 0.45),
+  // The Temple of Dendur: the gate faces east across the reflecting pool; the temple stands behind it.
+  B('temple', 'northCourt', 'temple', -5, 3, -69.5, -62.5, 1.0, 6.6, { variant: 'dendur' }),
+  B('gateway', 'northCourt', 'temple', 6.4, 7.8, -67.8, -64.2, 1.0, 8.2, { variant: 'pylon' }),
+  B('pool', 'northCourt', 'pool', 10, 18, -72, -60, 0, 0.45, { variant: 'dark' }),
+  B('papyrus', 'northCourt', 'planter', 13, 14.5, -62.4, -60.9, 0.3, 1.8, { variant: 'papyrus', noCollide: true }),
+  // Two seated pharaohs in dark granite at the end of the pool, looking toward the temple.
+  B('pharaohN', 'northCourt', 'statue', 18.5, 19.8, -70.7, -69.3, 0, 2.7, { variant: 'pharaoh' }),
+  B('pharaohS', 'northCourt', 'statue', 18.5, 19.8, -62.7, -61.3, 0, 2.7, { variant: 'pharaoh' }),
   B('pedestalA', 'northCourt', 'plinth', -13, -11, -64, -62, 0, 1.0, { variant: 'relic' }),
   B('coverNA', 'northCourt', 'sculpture', -30, -27, -64, -61, 0, 1.6, { variant: 'lion' }),
-  B('coverNB', 'northCourt', 'obelisk', -1, 0.2, -66, -64.8, 0, 6.5),
 
   // South Court: monumental sculpture, carved poles, relic pedestal.
   B('pedestalB', 'southCourt', 'plinth', -13, -11, 62, 64, 0, 1.0, { variant: 'relic' }),
@@ -430,7 +435,7 @@ slots.push(
   // Sculpture Court and Modern.
   D('scStatue', 'sculptureCourt', 'statue', -28, 0, -8), D('moPainting', 'modern', 'painting', -50, 0, 31), D('moStatue', 'modern', 'statue', -30, 0, 45), D('moVase', 'modern', 'vase', -56, 0, 15),
   // Courts.
-  D('ncUrn', 'northCourt', 'urn', -40, 0, -60), D('ncStatue', 'northCourt', 'statue', -45, 0, -66), D('ncAmphora', 'northCourt', 'amphora', 2, 0, -58),
+  D('ncUrn', 'northCourt', 'urn', -40, 0, -60), D('ncStatue', 'northCourt', 'statue', -45, 0, -66), D('ncAmphora', 'northCourt', 'amphora', -20, 0, -58),
   // Upstairs: the European Paintings masterpieces, Asian Art, Musical Instruments.
   D('pEMaster', 'paintE2', 'masterpiece', -31.5, F2, -20), D('pWMaster', 'paintW4', 'masterpiece', -50.5, F2, 20),
   D('pWPainting', 'paintW2', 'painting', -50.5, F2, -20), D('pEPainting', 'paintE4', 'painting', -31.5, F2, 20),
@@ -482,7 +487,7 @@ const circuit: MuseumMap['circuit'] = {
   detours: [
     { from: 1, zone: 'closedEgypt', label: 'the closed Egyptian wing', path: [[33, 0, -24], [33, 0, -28], [32, 0, -31]] },
     { from: 2, zone: 'closedStair', label: 'the staff-only staircase', path: [[16, 0, -12], [13, 0, -7.5], [12, 0, -7], [9, 0, -9.5]] },
-    { from: 5, zone: 'closedNorthCourt', label: 'the closed Temple Court', path: [[-3.5, 0, -32], [-3.5, 0, -47], [-9, 0, -50], [-12, 0, -55.5]] },
+    { from: 5, zone: 'closedNorthCourt', label: 'the closed Temple of Dendur', path: [[-3.5, 0, -32], [-3.5, 0, -47], [-9, 0, -50], [-12, 0, -55.5]] },
     { from: 11, zone: 'closedSouthCourt', label: 'the closed Glass Court', path: [[-34, 0, 40], [-41, 0, 48], [-41, 0, 50], [-41, 0, 55.5]] },
   ],
 };
@@ -516,8 +521,8 @@ const ARTIFACT_SLOTS: [string, string, number, number, number, NonNullable<Slot[
   ['armsNorth', 'armsArmor', 10.5, -48, 0, 'obvious'],
   ['culturesPodium', 'cultures', 4.5, 39, 0.6, 'obvious'],
   ['culturesFloor', 'cultures', 5, 18.5, 0, 'obvious'],
-  ['northObelisk', 'northCourt', 0.8, -63, 0, 'obvious'],
-  ['northPodium', 'northCourt', 27.6, -66, 1.2, 'obvious'],
+  ['northPharaoh', 'northCourt', 20.8, -58.5, 0, 'obvious'],
+  ['northPlatform', 'northCourt', 9.2, -60, 1.0, 'obvious'],
   ['northLion', 'northCourt', -26.3, -62.5, 0, 'obvious'],
   ['southMonument', 'southCourt', 17.3, 60.7, 1.0, 'obvious'],
   ['southFloor', 'southCourt', -30, 66, 0, 'obvious'],

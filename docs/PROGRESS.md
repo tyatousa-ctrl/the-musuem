@@ -205,7 +205,7 @@ Found and fixed during the pass:
 | Guards react only to strikes they see or hear close by (heavier tools carry further): first strike, they come to look; second, they chase. Break line of sight and they search, then return to patrol | bot, browser |
 | Caught: locked in the cells downstairs (barred gates on the security office), free to move inside; the gates open when your time is up. The basement is otherwise open | bot, browser |
 | Everything breakable: every painting on the gallery walls (≈180, small price tags by each frame, upstairs included) and the exhibits (knights, statues, sculptures, cases, sarcophagi, skeletons, the temple…) | unit, browser |
-| Temple room to match the Met | waiting for the human's map |
+| Temple room to match the Met: the Temple of Dendur (Sackler Wing) from the reference photos | screenshot (`north.temple`, `north.dendur`) |
 
 ## Known gaps and issues
 

@@ -265,36 +265,44 @@ export function buildRoom(r: Room, ctx: BuildCtx): { group: THREE.Group; collide
 
     case 'courtNorth': case 'courtSouth': {
       const north = r.style === 'courtNorth';
-      buildFloor(sink, r, 'stone', 0xf0e9dc);
+      // The Sackler Wing (north) has a polished pinkish granite floor.
+      buildFloor(sink, r, 'stone', north ? 0xcfa595 : 0xf0e9dc);
       const glassSide = north ? 'north' : 'south';
       buildWalls(sink, map, r, { mat: 'stone', tint: 0xf1e8d8, cornice: 16.5, corniceScale: 1.2, stringCourses: [6], trimMat: 'plaster', trimTint: 0xf3ebdc, skip: [glassSide] });
       // Slanted glass wall: mullions leaning outward, with park beyond.
       const zEdge = north ? r.z0 : r.z1, out = north ? -1 : 1;
-      for (let x = r.x0; x <= r.x1 + 1e-3; x += 3) {
-        const m = new THREE.BoxGeometry(0.18, Math.hypot(r.ceilY, 4), 0.3);
+      for (let x = r.x0; x <= r.x1 + 1e-3; x += north ? 1.8 : 3) {
+        const m = new THREE.BoxGeometry(north ? 0.09 : 0.18, Math.hypot(r.ceilY, 4), north ? 0.18 : 0.3);
         m.rotateX(out * -Math.atan2(4, r.ceilY));
         m.translate(x, r.ceilY / 2, zEdge + out * 2);
-        sink.add('plain', m, undefined, { tint: 0x3d4248 });
+        sink.add('plain', m, undefined, { tint: north ? 0x8a9196 : 0x3d4248 });
       }
-      for (let y = 4; y < r.ceilY; y += 4) {
-        const t = new THREE.BoxGeometry(r.x1 - r.x0, 0.14, 0.2);
+      for (let y = north ? 1.6 : 4; y < r.ceilY; y += north ? 1.6 : 4) {
+        const t = new THREE.BoxGeometry(r.x1 - r.x0, north ? 0.07 : 0.14, 0.2);
         t.translate((r.x0 + r.x1) / 2, y, zEdge + out * (y / r.ceilY) * 4);
-        sink.add('plain', t, undefined, { tint: 0x3d4248 });
+        sink.add('plain', t, undefined, { tint: north ? 0x8a9196 : 0x3d4248 });
       }
       const glass = new THREE.PlaneGeometry(r.x1 - r.x0, Math.hypot(r.ceilY, 4));
       glass.rotateX(out * -Math.atan2(4, r.ceilY));
       glass.translate((r.x0 + r.x1) / 2, r.ceilY / 2, zEdge + out * 2);
       sink.add('glass', glass, undefined, { tint: 0xd5ecf3 });
       sink.collideBox(r.x0, r.floorY, zEdge - (north ? 0.3 : 0), r.x1, r.ceilY, zEdge + (north ? 0 : 0.3));
-      // Glazed roof: grid of skylights.
       sink.box('plaster', r.x0, r.ceilY, r.z0, r.x1, r.ceilY + 0.4, r.z1, { tint: 0xe6ddd0 });
-      for (let x = r.x0 + 4; x < r.x1 - 4; x += 8) for (let z = r.z0 + 4; z < r.z1 - 3; z += 8) {
-        sink.box('emissive', x, r.ceilY - 0.02, z, x + 6, r.ceilY, z + 6, { tint: 0xf8fbfb });
+      if (north) {
+        // The Sackler Wing's ceiling: one great pale-green laylight crossed by a fine grid.
+        sink.box('emissive', r.x0, r.ceilY - 0.03, r.z0, r.x1, r.ceilY, r.z1, { tint: 0xe3eee8 });
+        for (let x = r.x0 + 1.5; x < r.x1; x += 1.5) sink.box('plain', x - 0.03, r.ceilY - 0.12, r.z0, x + 0.03, r.ceilY - 0.03, r.z1, { tint: 0x9aa7a2 }, 50);
+        for (let z = r.z0 + 3; z < r.z1; z += 3) sink.box('plain', r.x0, r.ceilY - 0.12, z - 0.03, r.x1, r.ceilY - 0.03, z + 0.03, { tint: 0x9aa7a2 }, 50);
+      } else {
+        // Glazed roof: grid of skylights.
+        for (let x = r.x0 + 4; x < r.x1 - 4; x += 8) for (let z = r.z0 + 4; z < r.z1 - 3; z += 8) {
+          sink.box('emissive', x, r.ceilY - 0.02, z, x + 6, r.ceilY, z + 6, { tint: 0xf8fbfb });
+        }
       }
       for (let x = r.x0 + 8; x < r.x1; x += 16) light.pools.push(pool(x, 0, (r.z0 + r.z1) / 2, 16, 0xfff6e8, 0.25));
-      const temple = blocks.find((b) => b.kind === 'temple' && !b.variant);
-      if (temple) extras.shafts.push({ top: V((temple.x0 + temple.x1) / 2, 19.5, temple.z1 + 4), bottom: V((temple.x0 + temple.x1) / 2, 1.2, temple.z1), radius: 2.2 });
-      buildPlatforms(sink, map, r.id, 'stone', 0xe7dccb, 'stone', 0xe7dccb);
+      // The temple platform is pale granite; light falls on it through the glass.
+      buildPlatforms(sink, map, r.id, 'stone', north ? 0xd9d3c9 : 0xe7dccb, 'stone', north ? 0xbdb5a8 : 0xe7dccb);
+      if (north) for (const b of blocks.filter((x) => x.kind === 'temple' || x.variant === 'pharaoh')) light.pools.push(pool((b.x0 + b.x1) / 2, b.y1 + 2, (b.z0 + b.z1) / 2, 9, 0xfff1d8, 0.45));
       buildStairs(sink, map, r.id, 'stone', 0xe5dac8);
       buildRails(sink, map, inRoom, 'stone', 0xe5dac8);
       // Capture zone ring around the relic pedestal.

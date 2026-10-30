@@ -181,6 +181,27 @@ export function buildBlock(sink: Sink, b: Block) {
       break;
     }
     case 'statue': {
+      if (b.variant === 'pharaoh') {
+        // Seated pharaoh in dark granite (Sackler Wing), facing west toward the temple: base, throne,
+        // legs, torso, nemes headdress with lappets, face and beard.
+        const g = 0x3a3733, g2 = 0x45413c;
+        const fx = b.x0, bx = b.x1; // front (west) and back (east)
+        sink.box('stone', b.x0 - 0.05, b.y0, b.z0 - 0.05, b.x1 + 0.05, b.y0 + 0.3, b.z1 + 0.05, { tint: 0x2e2b28, collide });
+        sink.box('stone', bx - 0.55, b.y0 + 0.3, b.z0, bx, b.y0 + 1.55, b.z1, { tint: g, collide });   // throne
+        sink.box('stone', fx + 0.05, b.y0 + 0.3, cz - 0.42, bx - 0.5, b.y0 + 0.85, cz + 0.42, { tint: g2, collide }); // shins
+        sink.box('stone', fx + 0.3, b.y0 + 0.85, cz - 0.42, bx - 0.5, b.y0 + 1.15, cz + 0.42, { tint: g2 }); // lap
+        sink.box('stone', bx - 0.95, b.y0 + 1.15, cz - 0.38, bx - 0.45, b.y0 + 2.0, cz + 0.38, { tint: g2 }); // torso
+        sink.box('stone', bx - 0.98, b.y0 + 1.95, cz - 0.4, bx - 0.5, b.y0 + 2.15, cz + 0.4, { tint: 0x4d4843 }); // shoulders
+        sink.box('stone', bx - 1.05, b.y0 + 1.6, cz - 0.3, bx - 0.85, b.y0 + 2.05, cz - 0.12, { tint: 0x4a4540 }); // lappets
+        sink.box('stone', bx - 1.05, b.y0 + 1.6, cz + 0.12, bx - 0.85, b.y0 + 2.05, cz + 0.3, { tint: 0x4a4540 });
+        const head = new THREE.CylinderGeometry(0.17, 0.3, 0.55, 10);
+        head.translate(bx - 0.72, b.y0 + 2.42, cz);
+        sink.add('stone', head, undefined, { tint: 0x4a4540 });
+        sink.box('stone', bx - 0.95, b.y0 + 2.15, cz - 0.12, bx - 0.86, b.y0 + 2.48, cz + 0.12, { tint: 0x55504a }); // face
+        sink.box('stone', bx - 0.93, b.y0 + 1.98, cz - 0.05, bx - 0.86, b.y0 + 2.16, cz + 0.05, { tint: 0x3a3733 }); // beard
+        sink.collideBox(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
+        break;
+      }
       // Seated colossus: throne, body, head with nemes headdress.
       sink.box('sandstone', b.x0, b.y0, b.z0, b.x1, b.y0 + h * 0.42, b.z1, { tint: 0x9b7a55, collide });
       sink.box('sandstone', b.x0 + w * 0.2, b.y0 + h * 0.42, b.z0 + d * 0.1, b.x1 - w * 0.2, b.y0 + h * 0.78, b.z1 - d * 0.1, { tint: 0xa8875f });
@@ -270,6 +291,21 @@ export function buildBlock(sink: Sink, b: Block) {
       break;
     }
     case 'planter': {
+      if (b.variant === 'papyrus') {
+        // A clump of papyrus growing in the pool: tall green stems fanning out, tufted heads.
+        const stems: THREE.BufferGeometry[] = [], heads: THREE.BufferGeometry[] = [];
+        for (let i = 0; i < 48; i++) {
+          const a = rand() * Math.PI * 2, lean = 0.08 + rand() * 0.35, len = 0.8 + rand() * (h - 0.6);
+          const stem = new THREE.CylinderGeometry(0.008, 0.012, len, 4).translate(0, len / 2, 0);
+          const m = new THREE.Matrix4().makeRotationY(a).multiply(new THREE.Matrix4().makeRotationZ(lean));
+          stems.push(stem.applyMatrix4(m));
+          const top = new THREE.Vector3(0, len, 0).applyMatrix4(m);
+          heads.push(new THREE.ConeGeometry(0.16, 0.18, 6).rotateX(Math.PI).translate(top.x, top.y, top.z));
+        }
+        for (const g of stems) sink.add('foliage', g, M(cx, b.y0, cz), { tint: 0x5f9a3c });
+        for (const g of heads) sink.add('foliage', g, M(cx, b.y0, cz), { tint: 0x7cbb4a });
+        break;
+      }
       const fl = flowers();
       sink.add('stone', fl.urn, M(cx, b.y0, cz).multiply(new THREE.Matrix4().makeScale(1.3, 1.3, 1.3)), { tint: 0xd8cdb8, collide });
       sink.add('foliage', fl.leaves, M(cx, b.y0, cz).multiply(new THREE.Matrix4().makeScale(1.3, 1.3, 1.3)), { tint: 0xb9d79a });
@@ -278,6 +314,39 @@ export function buildBlock(sink: Sink, b: Block) {
       break;
     }
     case 'temple': {
+      if (b.variant === 'pylon') {
+        // The Dendur gate: a single tall stone pylon (its long side across the temple's axis) with a
+        // doorway through it, a torus moulding and a flared cavetto cornice with a winged disc.
+        const t = 0xd3c3a4, d0 = cz - 0.65, d1 = cz + 0.65, top = b.y1 - 1.1;
+        sink.box('stone', b.x0, b.y0, b.z0, b.x1, top, d0, { tint: t, collide });
+        sink.box('stone', b.x0, b.y0, d1, b.x1, top, b.z1, { tint: t, collide });
+        sink.box('stone', b.x0, b.y0 + 4.2, d0, b.x1, top, d1, { tint: 0xcbbb9b, collide });          // lintel over the door
+        sink.box('stone', b.x0 - 0.1, top, b.z0 - 0.1, b.x1 + 0.1, top + 0.25, b.z1 + 0.1, { tint: 0xdccdb0 }); // torus
+        sink.box('stone', b.x0 - 0.35, top + 0.25, b.z0 - 0.35, b.x1 + 0.35, b.y1, b.z1 + 0.35, { tint: 0xd8c8aa }); // cornice
+        sink.box('plain', b.x1 + 0.36, top + 0.4, cz - 0.9, b.x1 + 0.4, top + 0.75, cz + 0.9, { tint: 0x9b8562 });  // winged disc
+        sink.box('stone', b.x1, b.y0 + 4.2, d0 - 0.1, b.x1 + 0.08, b.y0 + 4.4, d1 + 0.1, { tint: 0xc2b291 }); // door lintel band
+        break;
+      }
+      if (b.variant === 'dendur') {
+        // The temple: a porch with two columns facing the gate (east), then the sanctuary, its top
+        // corners worn into steps.
+        const t = 0xd0bf9e, porch = b.x1 - 2.4;
+        sink.box('stone', b.x0, b.y0, b.z0, porch, b.y1 - 0.7, b.z1, { tint: t, collide });
+        sink.box('stone', b.x0 - 0.15, b.y1 - 0.7, b.z0 - 0.15, porch, b.y1, b.z1 + 0.15, { tint: 0xdacaab });
+        // Porch: screen walls, roof and two columns with papyrus capitals.
+        sink.box('stone', porch, b.y0, b.z0, b.x1, b.y0 + 1.6, b.z0 + 1.0, { tint: t, collide });
+        sink.box('stone', porch, b.y0, b.z1 - 1.0, b.x1, b.y0 + 1.6, b.z1, { tint: t, collide });
+        sink.box('stone', porch, b.y1 - 1.2, b.z0, b.x1, b.y1 - 0.5, b.z1, { tint: 0xd6c6a6 });
+        for (const z of [cz - 1.1, cz + 1.1]) {
+          sink.add('stone', column(h - 1.2, 0.36, 'doric', 10), M(b.x1 - 0.6, b.y0, z), { tint: 0xd6c6a6, collide: false });
+          sink.collideBox(b.x1 - 1.0, b.y0, z - 0.4, b.x1 - 0.2, b.y1 - 1.2, z + 0.4);
+        }
+        // Worn, stepped ruin at the back corner.
+        for (let i = 0; i < 3; i++) sink.box('stone', b.x0 + i * 0.9, b.y1 - 0.7, b.z0 + i * 0.6, b.x0 + 2.7, b.y1 + 0.2 - i * 0.3, b.z0 + 2.2, { tint: 0xcab995 });
+        // Dark doorway into the sanctuary.
+        sink.box('plain', porch - 0.02, b.y0, cz - 0.6, porch + 0.02, b.y0 + 2.6, cz + 0.6, { tint: 0x2a2018 });
+        break;
+      }
       if (b.variant === 'gate') {
         // Gateway: two pylons with a lintel and cavetto cornice.
         sink.box('sandstone', b.x0, b.y0, b.z0, b.x0 + 1.1, b.y1, b.z1, { tint: 0xd6b07c, collide });
@@ -303,8 +372,9 @@ export function buildBlock(sink: Sink, b: Block) {
       sink.box('stone', b.x0, b.y0, b.z1 - rim, b.x1, b.y1, b.z1, { tint: 0xd8cfc0, collide });
       sink.box('stone', b.x0, b.y0, b.z0, b.x0 + rim, b.y1, b.z1, { tint: 0xd8cfc0, collide });
       sink.box('stone', b.x1 - rim, b.y0, b.z0, b.x1, b.y1, b.z1, { tint: 0xd8cfc0, collide });
-      sink.box('plain', b.x0 + rim, b.y0, b.z0 + rim, b.x1 - rim, b.y0 + 0.05, b.z1 - rim, { tint: 0x1d3a48 });
-      sink.box('water', b.x0 + rim, b.y1 - 0.12, b.z0 + rim, b.x1 - rim, b.y1 - 0.1, b.z1 - rim, { tint: 0x7fb3c7 });
+      const dark = b.variant === 'dark'; // the Sackler Wing's black, mirror-still pool
+      sink.box('plain', b.x0 + rim, b.y0, b.z0 + rim, b.x1 - rim, b.y0 + 0.05, b.z1 - rim, { tint: dark ? 0x0d1416 : 0x1d3a48 });
+      sink.box('water', b.x0 + rim, b.y1 - 0.12, b.z0 + rim, b.x1 - rim, b.y1 - 0.1, b.z1 - rim, { tint: dark ? 0x2a3b3e : 0x7fb3c7 });
       sink.collideBox(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
       break;
     }
