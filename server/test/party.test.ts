@@ -25,7 +25,8 @@ process.env.MUSEUM_TUNABLES = JSON.stringify({
   // Crowd Control: quick arrivals, and everyone starts out going the wrong way.
   crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
   // Insurance Fraud: guards come after the first bit of damage.
-  insuranceFraud: { heatLevels: [1, 2, 3, 4, 500] },
+  // Guards hear everything and run fast here, so a chase and a catch happen quickly.
+  insuranceFraud: { heatLevels: [1, 2, 3, 4, 500], securityHoldSec: 1, guards: { hearHands: 500, hearTool: 500, hearHeavy: 500, chaseSpeed: 25 } },
   // Short clocks for the new modes.
   hideSeek: { hideSec: 0.6, pingEverySec: 1.5, pingWarnSec: 0.5 },
   fixExhibit: { memorizeSec: 0.6, blindSec: 0.3, solveSec: 4 },
@@ -350,14 +351,16 @@ describe('Insurance Fraud, scripted', () => {
     expect(b('ghBustN').stage).toBe(2);
     expect(st(a).players.get('f1').score).toBe(26);
 
-    // That much damage brings a guard, who catches us: held in the security office.
-    await waitFor(() => st(a).players.get('f1').wanted >= 4, 2000, 'wanted');
-    await waitFor(() => st(a).agents.size > 0, 2000, 'guard');
-    const bust = b('ghBustN');
-    for (let i = 0; i < 60 && st(a).players.get('f1').status !== 'held'; i++) { pose(a, bust.x + 0.5, 0, bust.z); await sleep(150); }
-    expect(st(a).players.get('f1').status).toBe('held');
+    // Guards patrol from the start. Our three strikes on the bust were heard: after two, a guard gave chase and catches us.
+    expect(st(a).agents.size).toBe(4);
+    await waitFor(() => st(a).players.get('f1').status === 'held', 8000, 'caught by a guard');
     expect(st(a).players.get('f1').wanted).toBe(0);
     expect(st(a).objects.get('toolMalletA').status).not.toBe('carried'); // dropped when caught
+    // Locked in the cells downstairs; the doors open when the time is up.
+    expect(st(a).players.get('f1').feetY).toBe(-6);
+    expect(st(a).doors.get('jailDoor').open).toBe(false);
+    await waitFor(() => st(a).players.get('f1').status === 'active', 4000, 'released');
+    await waitFor(() => st(a).doors.get('jailDoor').open === true, 2000, 'cell doors open');
 
     // Late joiners spectate until the next round.
     const c = await join('fraud-party-113', 'f2');

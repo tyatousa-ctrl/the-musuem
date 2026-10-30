@@ -205,7 +205,7 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       const door = this.state.doors.get(String(m.id));
       const def = museum.doors.find((d) => d.id === door?.id);
       const portal = def && museum.portals.find((x) => x.id === def.portal);
-      if (!door || !portal) return;
+      if (!door || !portal || def.style === 'jail') return; // cell doors are security's, not yours
       if (Math.hypot(p.head.px - portal.x, p.head.pz - portal.z) > 3) return;
       door.open = !door.open;
     });

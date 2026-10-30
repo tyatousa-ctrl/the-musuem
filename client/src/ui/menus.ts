@@ -306,7 +306,7 @@ export const HOW_TO: Partial<Record<ModeId, string[]>> = {
   insuranceFraud: [
     'INSURANCE FRAUD · biggest bill wins',
     'Everything has a price tag. Vases break bare-handed; busts and paintings need a tool; statues need a heavy tool.',
-    'The big three (Mammoth, Giant Canvas, Lion Gate) have 3 anchors to loosen first. At 4 security stars a guard chases you.',
+    'Guards patrol with a vision cone on the floor. Two strikes they see or hear nearby and they chase you; get caught and you are locked in the cells downstairs.',
     'Desktop: E grab a tool · click to smash   ·   VR: grip a tool and swing',
   ],
   hideSeek: [

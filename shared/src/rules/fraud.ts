@@ -63,6 +63,33 @@ export const DESTRUCTIBLE_NAME: Record<string, string> = {
   canvas: 'Giant Canvas', gate: 'Lion Gate', mammoth: 'Mammoth skeleton',
 };
 
+// ─── Guards' eyes (shared so the cone you see is the cone that sees you) ───────
+
+export interface Watcher { x: number; z: number; yaw: number }
+
+/** Is the point inside the watcher's vision cone and in plain sight? (yaw 0 looks north, −z) */
+export function inSight(nav: { sees(ax: number, az: number, bx: number, bz: number): boolean }, w: Watcher, x: number, z: number, range: number, halfAngleDeg: number): boolean {
+  const dx = x - w.x, dz = z - w.z, d = Math.hypot(dx, dz);
+  if (d > range) return false;
+  if (d > 0.6) {
+    const fx = -Math.sin(w.yaw), fz = -Math.cos(w.yaw);
+    if ((dx * fx + dz * fz) / d < Math.cos((halfAngleDeg * Math.PI) / 180)) return false;
+  }
+  return nav.sees(w.x, w.z, x, z);
+}
+
+/** The outline of what a watcher can see: a fan of rays cut short by walls and exhibits. */
+export function visionFan(nav: { reach(x: number, z: number, yaw: number, range: number): number }, w: Watcher, range: number, halfAngleDeg: number, rays = 14): [number, number][] {
+  const half = (halfAngleDeg * Math.PI) / 180;
+  const out: [number, number][] = [];
+  for (let i = 0; i <= rays; i++) {
+    const a = w.yaw - half + (2 * half * i) / rays;
+    const r = nav.reach(w.x, w.z, a, range);
+    out.push([w.x - Math.sin(a) * r, w.z - Math.cos(a) * r]);
+  }
+  return out;
+}
+
 /** Plain-language price: 4 → "$4,000", 560 → "$560,000", 1200 → "$1.2M". */
 export function money(k: number): string {
   if (k >= 1000) return `$${(k / 1000).toFixed(k % 1000 === 0 ? 0 : 1)}M`;

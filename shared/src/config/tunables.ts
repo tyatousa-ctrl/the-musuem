@@ -242,11 +242,34 @@ export const tunables = {
     lieLowSec: 6,
     /** Level 2+: everyone sees where you are. Level 3+: an alarm sounds at you this often, s. */
     alarmEverySec: 10,
-    /** Level 4+: guards pursue (speed at level 4 and 5, m/s). */
+    /** Security guards: always on patrol; they react only to strikes they see or hear nearby. */
+    guards: {
+      /** Guards patrolling the ground floor and the upstairs galleries. */
+      ground: 3,
+      upper: 1,
+      patrolSpeed: 1.4,
+      investigateSpeed: 2.2,
+      /** Chasing; you can outrun them at a sprint (4.2), not at a walk. */
+      chaseSpeed: 3.4,
+      /** Vision cone: range (m) and half-angle (degrees). Walls and exhibits block it. */
+      sightRange: 12,
+      sightHalfAngleDeg: 35,
+      /** Strikes a guard must see or hear (within a short memory) before giving chase. */
+      strikesToChase: 2,
+      memorySec: 20,
+      /** How far a strike can be heard, by tool class, m. */
+      hearHands: 4,
+      hearTool: 7,
+      hearHeavy: 11,
+      /** Out of sight this long and the guard goes to where they last saw you, s. */
+      loseSightSec: 5,
+      /** Looking round there (and after investigating a noise), s. */
+      searchSec: 5,
+    },
+    /** Economy simulation only: a responder's speed (m/s); the old level-4 dispatch is now strike-driven. */
     guardSpeed: 3.1,
-    guardSpeedMax: 3.7,
-    maxGuards: 3,
-    catchRadius: 1.0,
+    /** A chasing guard this close catches you (arm's length; you may be pressed against an exhibit), m. */
+    catchRadius: 1.4,
   },
 } as const;
 

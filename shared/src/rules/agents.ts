@@ -144,6 +144,31 @@ export class AgentNav {
     return out;
   }
 
+  /** Is (x, z) an open (walkable) grid cell? */
+  openAt(x: number, z: number): boolean {
+    const g = this.navGrid(), C = AgentNav.CELL;
+    const i = Math.floor((x - g.x0) / C), k = Math.floor((z - g.z0) / C);
+    return i >= 0 && k >= 0 && i < g.nx && k < g.nz && g.open[k * g.nx + i] === 1;
+  }
+
+  /**
+   * Line of sight on this floor: nothing solid (walls, exhibits) between a and b.
+   * Samples the walkable grid every 0.25 m, ignoring the last half metre
+   * (whoever stands at b may be right next to an exhibit).
+   */
+  sees(ax: number, az: number, bx: number, bz: number): boolean {
+    const d = Math.hypot(bx - ax, bz - az);
+    for (let t = 0.25; t < d - 0.5; t += 0.25) if (!this.openAt(ax + ((bx - ax) * t) / d, az + ((bz - az) * t) / d)) return false;
+    return true;
+  }
+
+  /** How far a ray from (x, z) at `yaw` travels before something solid, up to `range`. */
+  reach(x: number, z: number, yaw: number, range: number): number {
+    const dx = -Math.sin(yaw), dz = -Math.cos(yaw);
+    for (let t = 0.25; t <= range; t += 0.25) if (!this.openAt(x + dx * t, z + dz * t)) return Math.max(0, t - 0.25);
+    return range;
+  }
+
   /** Every short step along the line is legal for a grid-sized agent. */
   clearLine(ax: number, az: number, bx: number, bz: number): boolean {
     const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 0.25);

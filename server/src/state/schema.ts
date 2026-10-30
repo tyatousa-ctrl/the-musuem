@@ -23,6 +23,8 @@ export const PlayerT = schema({
   menuOpen: t.boolean().default(false),
   /** Insurance Fraud security level, 0–5. */
   wanted: t.uint8().default(0),
+  /** Insurance Fraud: a guard can see you right now. */
+  seen: t.boolean().default(false),
   feetY: t.float32().default(0),
   head: PoseT,
   left: PoseT,

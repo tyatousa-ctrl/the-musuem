@@ -99,7 +99,7 @@ export interface Block {
 export interface Door {
   id: string; portal: string;
   defaultOpen: boolean;
-  style: 'secretPivot' | 'fireDoor' | 'glass';
+  style: 'secretPivot' | 'fireDoor' | 'glass' | 'jail';
 }
 
 export interface Spawn { id: string; pos: Vec3; yaw: number }

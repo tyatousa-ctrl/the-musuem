@@ -3,7 +3,7 @@
  * vase with bare hands, take a mallet (E), smash a bust, raise your Security
  * Level until a guard comes and you are held. Screenshots of the big pieces.
  *
- *   MUSEUM_TUNABLES='{"net":{"maxPoseSpeed":10000},"round":{"countdownSec":1},"insuranceFraud":{"heatLevels":[10,25,40,60,500],"heatDecayPerSec":2}}' PORT=2568 npx tsx server/src/index.ts
+ *   MUSEUM_TUNABLES='{"net":{"maxPoseSpeed":10000},"round":{"countdownSec":1},"insuranceFraud":{"heatLevels":[10,25,40,60,500],"heatDecayPerSec":2,"guards":{"hearHands":500,"hearTool":500,"hearHeavy":500,"chaseSpeed":6,"strikesToChase":6,"memorySec":300}}}' PORT=2568 npx tsx server/src/index.ts
  *   VITE_SERVER_URL=http://localhost:2568 npx vite --port 5174   (in client/)
  *   SMOKE_BASE=http://localhost:5174 npx tsx tools/smoke/fraud-desktop.ts
  */
@@ -52,6 +52,17 @@ const smash = async (id: string, side: [number, number], times: number) => {
   return B(id);
 };
 
+// 0. Guards are on patrol from the start, each with a vision cone on the floor.
+await page.waitForFunction(`${G}.net.state.agents.size >= 3`, undefined, { timeout: 10000 }).catch(() => fail('no guards on patrol'));
+const g1 = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => { if (!g && Math.abs(a.y) < 1) g = { x: a.x, z: a.z, yaw: a.yaw }; }); return g; })()`) as any;
+// Stand 6 m in front of a guard, inside its cone, and look at it.
+await page.evaluate(`(() => { const g = ${G}; const fx = -Math.sin(${g1.yaw}), fz = -Math.cos(${g1.yaw}); g.player.teleport([${g1.x} + fx * 6, 0, ${g1.z} + fz * 6], ${g1.yaw} + Math.PI); g.player.pitch = -0.35; })()`);
+await page.waitForTimeout(1500);
+const cones = await page.evaluate(`${G}.scene.getObjectByName('visionCones').children.length`) as number;
+console.log('vision cones drawn:', cones, '· seen:', await page.evaluate(`${G}.net.me().seen`));
+if (cones < 3) fail('vision cones missing');
+await page.screenshot({ path: 'docs/screens/_smoke-fraud-cones.png' });
+
 // 1. The Great Hall: a vase and a bust with their price tags.
 const bust = await B('ghBustN');
 await face(bust.x, bust.y, bust.z, 3, [0.8, 0.6]);
@@ -75,24 +86,26 @@ if (broke.stage !== 2) fail(`bust not smashed with the mallet (hp ${broke.hp})`)
 console.log('after bust:', JSON.stringify(await me()), JSON.stringify(await hud()));
 await page.screenshot({ path: 'docs/screens/_smoke-fraud-mallet.png' });
 
-// 4. More damage: Security Level 4 brings a guard, who catches us.
+// 4. More smashing. Those strikes are heard: enough of them and a guard gives chase. Watch it come, then get caught and locked in the cells.
 await smash('ghBustS', [0, -1], 3);
 await smash('ghUrnS', [-1, 0], 2);
-console.log('wanted:', JSON.stringify(await me()));
-await page.waitForFunction(`${G}.net.state.agents.size > 0`, undefined, { timeout: 10000 }).catch(() => fail('no guard came'));
-// Turn to watch the guard come.
-const guard = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => (g = { x: a.x, z: a.z })); return g; })()`) as any;
-const m = await me();
-await page.evaluate(`(() => { const g = ${G}; g.player.yaw = ${Math.atan2(-(guard.x - m.x), -(guard.z - m.z))}; g.player.pitch = -0.05; })()`);
-await page.waitForTimeout(1500);
-await page.screenshot({ path: 'docs/screens/_smoke-fraud-guard.png' });
-for (let i = 0; i < 4; i++) {
-  console.log('guard at', await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => (g = [a.x.toFixed(1), a.z.toFixed(1), a.mood])); return JSON.stringify(g); })()`), 'me', JSON.stringify(await me()));
-  await page.waitForTimeout(1500);
+await page.waitForFunction(`[...${G}.net.state.agents.values()].some((a) => a.mood === 6) || ${G}.net.me().status === 'held'`, undefined, { timeout: 15000 }).catch(() => fail('no guard gave chase'));
+const chaser = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => { if (a.mood === 6) g = { x: a.x, z: a.z }; }); return g; })()`) as any;
+if (chaser) {
+  const m = await me();
+  await page.evaluate(`(() => { const g = ${G}; g.player.yaw = ${Math.atan2(-(chaser.x - m.x), -(chaser.z - m.z))}; g.player.pitch = -0.1; })()`);
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'docs/screens/_smoke-fraud-guard.png' });
+}
+for (let i = 0; i < 12 && process.env.DEBUG_GUARDS; i++) {
+  console.log('  guards', await page.evaluate(`JSON.stringify([...${G}.net.state.agents.values()].map((a) => [a.x.toFixed(1), a.y, a.z.toFixed(1), a.mood]))`), 'me', JSON.stringify(await me()));
+  await page.waitForTimeout(1000);
 }
 await page.waitForFunction(`${G}.net.me().status === 'held'`, undefined, { timeout: 30000 }).catch(() => fail('the guard never caught us'));
-await page.waitForTimeout(1200);
-console.log('held:', JSON.stringify(await hud()));
+await page.waitForTimeout(1500);
+console.log('held:', JSON.stringify(await hud()), '· cell door open?', await page.evaluate(`${G}.net.state.doors.get('jailDoor').open`));
+await page.evaluate(`(() => { ${G}.player.yaw = -Math.PI / 2; ${G}.player.pitch = -0.1; })()`);
+await page.waitForTimeout(800);
 await page.screenshot({ path: 'docs/screens/_smoke-fraud-held.png' });
 
 // 5. The big pieces, for the record (spectator camera so nothing moves us).

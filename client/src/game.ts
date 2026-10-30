@@ -277,11 +277,11 @@ export class Game {
 
     const me = this.net?.me();
     const ko = me?.status === 'ko';
-    const held = me?.status === 'held'; // caught by security (Insurance Fraud)
+    // Caught by security (Insurance Fraud): locked in a cell downstairs, free to pace about it.
     const blind = me?.status === 'blind'; // eyes closed (Hide and Seek seeker, Fix the Exhibit shuffle)
-    this.player.setFade(ko ? 0.85 : held ? 0.45 : 0);
+    this.player.setFade(ko ? 0.85 : 0);
     this.player.blackout = blind;
-    this.player.frozen = ko || held || blind ? 0.1 : this.player.frozen;
+    this.player.frozen = ko || blind ? 0.1 : this.player.frozen;
     this.player.speedMul = this.carrying() ? tunables.ctr.carrierSpeedMul : this.holding('sledgehammer') ? tunables.insuranceFraud.sledgeSpeedMul : 1;
     this.player.dynamicBoxes = [...this.doors.boxes, ...this.elevators.boxes, ...this.breakables.boxes];
     // Late joiners in a timed mode spectate with a free-fly camera on desktop (brief §12.3).

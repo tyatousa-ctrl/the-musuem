@@ -346,6 +346,9 @@ const blocks: Block[] = [
 
 const doors: Door[] = [
   { id: 'egyptSecretDoor', portal: 'egyptM-N-secret', defaultOpen: false, style: 'secretPivot' },
+  // The security office doubles as the cells: Insurance Fraud locks these while someone is held.
+  { id: 'jailDoor', portal: 'svc-security', defaultOpen: true, style: 'jail' },
+  { id: 'jailDoorLab', portal: 'security-lab', defaultOpen: true, style: 'jail' },
 ];
 
 /** Elevators between the ground floor and the second floor (cab footprint 2.8 m). */

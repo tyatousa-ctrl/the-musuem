@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { money, type ServerEvents } from '@museum/shared';
+import { AgentNav, MOODS, museum, money, tunables, visionFan, type ServerEvents } from '@museum/shared';
 import type { NetState } from '../multiplayer/net';
 import { Crowd, label } from './crowd';
 import { timer, type ClientMode, type ClientModeCtx } from './index';
@@ -104,6 +104,55 @@ class ToolLabels {
   }
 }
 
+/**
+ * Guards' vision cones on the floor: the same fan the server uses to decide
+ * whether you're seen, cut short by walls and exhibits. Yellow on patrol,
+ * orange when investigating or searching, red when chasing.
+ */
+const CONE_COLOR: Record<string, number> = { ok: 0xffd56b, waiting: 0xff9a3a, alert: 0xff2a1a };
+class Cones {
+  readonly group = new THREE.Group();
+  private navs = new Map<number, AgentNav>();
+  private meshes = new Map<string, THREE.Mesh>();
+  private acc = 0;
+  constructor() { this.group.name = 'visionCones'; }
+  private nav(floorY: number) {
+    let n = this.navs.get(floorY);
+    if (!n) { n = new AgentNav(museum, floorY); this.navs.set(floorY, n); }
+    return n;
+  }
+  update(ctx: ClientModeCtx, dt: number) {
+    this.acc += dt;
+    if (this.acc < 0.1) return; // 10 Hz, like the guards themselves
+    this.acc = 0;
+    const g = tunables.insuranceFraud.guards;
+    const seen = new Set<string>();
+    ctx.net.state?.agents?.forEach((a: NetState, id: string) => {
+      seen.add(id);
+      const floorY = Math.round(a.y);
+      const fan = visionFan(this.nav(floorY), { x: a.x, z: a.z, yaw: a.yaw }, g.sightRange, g.sightHalfAngleDeg);
+      const pos: number[] = [];
+      for (let i = 0; i + 1 < fan.length; i++) pos.push(a.x, 0, a.z, fan[i][0], 0, fan[i][1], fan[i + 1][0], 0, fan[i + 1][1]);
+      let m = this.meshes.get(id);
+      if (!m) {
+        m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
+        m.renderOrder = 5;
+        this.meshes.set(id, m);
+        this.group.add(m);
+      }
+      m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      m.geometry.computeBoundingSphere();
+      m.position.y = floorY + 0.04;
+      const mood = MOODS[a.mood] ?? 'ok';
+      (m.material as THREE.MeshBasicMaterial).color.setHex(CONE_COLOR[mood] ?? CONE_COLOR.ok);
+      (m.material as THREE.MeshBasicMaterial).opacity = mood === 'alert' ? 0.32 : 0.2;
+    });
+    for (const [id, m] of this.meshes) if (!seen.has(id)) { m.removeFromParent(); m.geometry.dispose(); this.meshes.delete(id); }
+  }
+}
+
+let cones: Cones | null = null;
+let wasSeen = false;
 let guards: Crowd | null = null;
 let beacons: Beacons | null = null;
 let popups: Popups | null = null;
@@ -114,6 +163,8 @@ let t = 0;
 export const insuranceFraud: ClientMode = {
   id: 'insuranceFraud',
   enter(ctx) {
+    cones = new Cones();
+    ctx.scene.add(cones.group);
     guards = new Crowd(); beacons = new Beacons(); popups = new Popups(); toolLabels = new ToolLabels();
     ctx.scene.add(guards.group, beacons.group, popups.group, toolLabels.group);
     offs = [
@@ -130,6 +181,8 @@ export const insuranceFraud: ClientMode = {
     ];
   },
   exit() {
+    cones?.group.removeFromParent();
+    cones = null;
     offs.forEach((f) => f());
     offs = [];
     for (const g of [guards?.group, beacons?.group, popups?.group, toolLabels?.group]) g?.removeFromParent();
@@ -139,6 +192,11 @@ export const insuranceFraud: ClientMode = {
   update(ctx, dt) {
     t += dt;
     guards?.update(ctx.net.state, dt);
+    cones?.update(ctx, dt);
+    // A soft warning tick the moment a guard's eyes land on you.
+    const seenNow = !!ctx.net.me()?.seen;
+    if (seenNow && !wasSeen) ctx.audio.play('bad', undefined, { gain: 0.35, rate: 1.6 });
+    wasSeen = seenNow;
     beacons?.update(ctx, t);
     popups?.update(dt);
     toolLabels?.update(ctx);
@@ -157,7 +215,8 @@ export const insuranceFraud: ClientMode = {
     const lead = leader && leader.id !== ctx.net.playerId ? ` · ${leader.name} ${money(leader.score)}` : rank === 1 && ranked.length > 1 ? ' · leading!' : '';
     let tool = '';
     for (const id of [me.heldRight, me.heldLeft]) { const o = id && s.objects.get(id); if (o && o.kind === 'tool') tool = TOOL_NAME[o.variant] ?? o.variant; }
-    const status = me.status === 'held' ? `HELD BY SECURITY ${Math.max(0, Math.ceil((me.koUntil - ctx.net.serverNow()) / 1000))}s`
+    const status = me.status === 'held' ? `LOCKED IN THE CELLS ${Math.max(0, Math.ceil((me.koUntil - ctx.net.serverNow()) / 1000))}s`
+      : me.seen ? '👁 A GUARD CAN SEE YOU'
       : `Security ${'★'.repeat(me.wanted)}${'☆'.repeat(5 - me.wanted)}${tool ? ` · ${tool}` : ' · bare hands'}`;
     return [`Bill ${money(me.score)} · #${rank} of ${ranked.length}${lead}`, `${timer(ctx)} left`, status];
   },
