@@ -73,7 +73,7 @@ for (const [i, p] of posts.slice(0, 2).entries()) {
 await tp(19.5, -11, Math.atan2(-(23.6 - 19.5), -(-15 + 11)), -0.35); // looking at the new rope
 await page.waitForTimeout(1500);
 console.log('stanchions:', JSON.stringify(await page.evaluate(`(() => { const out = []; ${G}.net.state.objects.forEach((o, id) => { if (o.kind === 'stanchion') out.push([id, o.x.toFixed(1), o.y.toFixed(2), o.z.toFixed(1), o.status]); }); return out; })()`)));
-const ropes = await page.evaluate(`${G}.scene.getObjectByName('ropes').children.filter((m) => m.visible).length`) as number;
+const ropes = await page.evaluate(`${G}.scene.getObjectByName('ropes').children[0].count`) as number;
 console.log('rope pieces visible:', ropes);
 if (ropes < 2) fail('no rope between the stanchions');
 await page.screenshot({ path: 'docs/screens/_smoke-crowd-rope.png' });

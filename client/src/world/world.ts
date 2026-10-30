@@ -36,6 +36,11 @@ function visibilitySets(map: MuseumMap): Map<RoomId, Set<RoomId>> {
     for (const n of big.get(r.id)!) for (const m of big.get(n)!) s.add(m);
     vis.set(r.id, s);
   }
+  // See-through doorways (map hint) are lined up with a grand opening into room `a`: from
+  // across that opening you see into `b`. One way only: from `b` the far room is behind you.
+  for (const p of map.portals) if (p.seeThrough) {
+    for (const r of big.get(p.a)!) vis.get(r)?.add(p.b);
+  }
   // Gallery enfilades read best with two rooms visible down the line.
   for (const r of map.rooms) if (r.id.startsWith('gallery')) {
     for (const n of [...adj.get(r.id)!]) for (const m of adj.get(n)!) if (m.startsWith('gallery')) vis.get(r.id)!.add(m);
@@ -130,6 +135,27 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
 
   const vis = visibilitySets(map);
   let lastRoom: RoomId | null = null;
+  // Direct room-to-room doorways, for the floor-aware check in cull().
+  const links = new Map<RoomId, Map<RoomId, typeof map.portals>>();
+  for (const p of map.portals) {
+    for (const [a, b] of [[p.a, p.b], [p.b, p.a]]) {
+      if (!links.has(a)) links.set(a, new Map());
+      const m = links.get(a)!;
+      if (!m.has(b)) m.set(b, []);
+      m.get(b)!.push(p);
+    }
+  }
+  /** Is `other` also visible through a chain of grand openings (not just its direct doorways)? */
+  const chained = new Map<RoomId, Set<RoomId>>();
+  for (const r of map.rooms) {
+    const s = new Set<RoomId>();
+    for (const p of map.portals) if ((p.kind === 'grand' || p.kind === 'arch') && (p.a === r.id || p.b === r.id)) {
+      const n = p.a === r.id ? p.b : p.a;
+      for (const q of map.portals) if ((q.kind === 'grand' || q.kind === 'arch') && (q.a === n || q.b === n)) s.add(q.a === n ? q.b : q.a);
+    }
+    chained.set(r.id, s);
+  }
+  const reachedOtherwise = (room: RoomId, other: RoomId) => chained.get(room)!.has(other);
 
   return {
     scene, rooms, collider, colliderMesh, sky,
@@ -137,6 +163,15 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
       const room = roomAt(map, pos.x, pos.y - 1.2, pos.z)?.id ?? lastRoom ?? 'exterior';
       lastRoom = room;
       const visible = new Set(vis.get(room) ?? []);
+      // A neighbour joined only by doorways high above you (the upstairs galleries off the
+      // Dinosaur Hall's catwalks, seen from the floor 8 m below) is drawn only when you're on
+      // that level or close to one of those doorways: from far below you can't see into it.
+      const eye = pos.y;
+      for (const [other, ps] of links.get(room) ?? []) {
+        if (!visible.has(other) || other === room) continue;
+        const near = ps.some((p) => p.y + 1.6 - eye < 3 || Math.hypot(p.x - pos.x, p.z - pos.z) < 14); // doorways overhead only
+        if (!near && !reachedOtherwise(room, other)) visible.delete(other);
+      }
       if (EXTERIOR_VISIBLE_FROM.has(room)) visible.add('exterior');
       for (const [id, g] of rooms) g.visible = visible.has(id);
       sky.visible = visible.has('exterior') || room === 'northCourt' || room === 'southCourt';

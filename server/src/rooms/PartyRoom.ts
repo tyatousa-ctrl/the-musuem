@@ -273,6 +273,8 @@ export class PartyRoom extends Room<{ state: PartyState }> {
     this.mode = factory();
     this.state.result = '';
     for (const p of this.state.players.values()) if (p.status === 'spectating') p.status = 'active';
+    // The lobby's grab-test props are lobby toys: they leave for the round and come back after.
+    this.systems.objects.removeKind('prop');
     this.mode.onEnter(this.ctx);
     this.state.phase = 'countdown';
     this.state.phaseEndsAt = Date.now() + this.tunables.round.countdownSec * 1000;
@@ -330,7 +332,10 @@ export class PartyRoom extends Room<{ state: PartyState }> {
   }
 
   private resetLobbyProps() {
-    for (const slot of museum.slots.filter((s) => s.kind === 'prop')) this.systems.objects.place(slot.id, slot.pos, 'rest');
+    for (const slot of museum.slots.filter((s) => s.kind === 'prop')) {
+      if (this.state.objects.has(slot.id)) this.systems.objects.place(slot.id, slot.pos, 'rest');
+      else this.systems.objects.spawn(slot.id, 'prop', slot.id.includes('Vase') ? 'vase' : 'bust', slot.pos);
+    }
   }
 
   // ─── Context and messaging helpers ────────────────────────────────────────

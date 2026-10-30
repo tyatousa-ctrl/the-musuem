@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Hand } from '@museum/shared';
 import type { NetState } from '../multiplayer/net';
 import type { Avatars } from '../multiplayer/avatars';
@@ -6,6 +7,7 @@ import type { TrackedHand } from '../player/hands';
 import type { DynamicBox } from '../player/collision';
 import { DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, money } from '@museum/shared';
 import { SIZE, destructibleMesh, priceTag, rubbleMesh } from './destructibles';
+import type { DynamicCull } from '../world/dyncull';
 
 const tmp = new THREE.Vector3();
 
@@ -90,12 +92,15 @@ function makeObjectMesh(kind: string, variant: string, team: string): THREE.Obje
     x.font = 'bold 44px sans-serif'; x.fillText('➜', 128, 178);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.38, 0.03), [
-      new THREE.MeshLambertMaterial({ color: 0x1d2a44 }), new THREE.MeshLambertMaterial({ color: 0x1d2a44 }),
-      new THREE.MeshLambertMaterial({ color: 0x1d2a44 }), new THREE.MeshLambertMaterial({ color: 0x1d2a44 }),
-      new THREE.MeshBasicMaterial({ map: tex }), new THREE.MeshBasicMaterial({ map: tex }),
-    ]);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.38, 0.03), new THREE.MeshLambertMaterial({ color: 0x1d2a44 }));
     board.position.y = -0.25;
+    // Both faces in one draw call; the back face is turned round so it reads correctly too.
+    const faces = new THREE.Mesh(mergeGeometries([
+      new THREE.PlaneGeometry(0.48, 0.36).translate(0, 0, 0.016),
+      new THREE.PlaneGeometry(0.48, 0.36).rotateY(Math.PI).translate(0, 0, -0.016),
+    ])!, new THREE.MeshBasicMaterial({ map: tex }));
+    faces.position.y = -0.25;
+    g.add(faces);
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.0, 6), new THREE.MeshLambertMaterial({ color: 0x333333 }));
     post.position.y = -0.5;
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.04, 12), new THREE.MeshLambertMaterial({ color: 0x333333 }));
@@ -152,6 +157,46 @@ function makeTool(variant: string): THREE.Object3D {
 const TOOL_GRIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
 const tmpQ = new THREE.Quaternion();
 
+/**
+ * One draw call per object (brief §9): merge every plain, untextured, opaque
+ * Lambert part of an object into a single vertex-coloured mesh. Textured,
+ * transparent and named parts (a relic's 'glow') stay separate. Cached per look.
+ */
+const baked = new Map<string, THREE.BufferGeometry>();
+const bakedMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+function bake(root: THREE.Object3D): THREE.Object3D {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const parts: THREE.Mesh[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.name || Array.isArray(m.material)) return;
+    const mat = m.material as THREE.MeshLambertMaterial;
+    if (!mat.isMeshLambertMaterial || mat.map || mat.transparent || mat.vertexColors) return;
+    parts.push(m);
+  });
+  if (parts.length < 2) return root;
+  const key = parts.map((m) => `${m.geometry.uuid}:${(m.material as THREE.MeshLambertMaterial).color.getHex()}:${m.matrixWorld.elements.map((v) => v.toFixed(3)).join(',')}`).join('|');
+  let geo = baked.get(key);
+  if (!geo) {
+    geo = mergeGeometries(parts.map((m) => {
+      const mat = m.material as THREE.MeshLambertMaterial;
+      // Fold a little of the emissive glow into the colour so gold still reads as gold.
+      const c = mat.color.clone().add(mat.emissive.clone().multiplyScalar(mat.emissiveIntensity * 0.5));
+      const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+      for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+      const col = new Float32Array(g.attributes.position.count * 3);
+      for (let i = 0; i < col.length; i += 3) { col[i] = c.r; col[i + 1] = c.g; col[i + 2] = c.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      return g;
+    }))!;
+    baked.set(key, geo);
+  }
+  for (const m of parts) m.removeFromParent();
+  root.add(new THREE.Mesh(geo, bakedMat));
+  return root;
+}
+
 interface Entry { obj: THREE.Object3D; kind: string; team: string }
 
 /** Synced world objects with local grab prediction (brief §12.4). */
@@ -184,7 +229,7 @@ export class WorldObjects {
     return best;
   }
 
-  update(state: NetState, myId: string, hands: Record<Hand, TrackedHand>, avatars: Avatars, dt: number) {
+  update(state: NetState, myId: string, hands: Record<Hand, TrackedHand>, avatars: Avatars, dt: number, cull?: DynamicCull) {
     this.t += dt;
     const seen = new Set<string>();
     state?.objects?.forEach((o: NetState, id: string) => {
@@ -192,7 +237,7 @@ export class WorldObjects {
       seen.add(id);
       let e = this.entries.get(id);
       if (!e) {
-        e = { obj: makeObjectMesh(o.kind, o.variant, o.team), kind: o.kind, team: o.team };
+        e = { obj: bake(makeObjectMesh(o.kind, o.variant, o.team)), kind: o.kind, team: o.team };
         e.obj.position.set(o.x, o.y, o.z);
         this.entries.set(id, e);
         this.group.add(e.obj);
@@ -222,6 +267,8 @@ export class WorldObjects {
       }
       if (e.kind === 'artifact') e.obj.rotation.y += dt * 0.8;
       if (e.kind === 'piece') e.obj.rotation.y = o.yaw;
+      // Held things always show; the rest only when their room is in view.
+      e.obj.visible = mine || !cull || cull.shows(e.obj.position.x, e.obj.position.y - 0.5, e.obj.position.z, e.kind === 'piece' ? 60 : 40);
       if (e.kind === 'relic') {
         e.obj.rotation.y += dt * (o.status === 'home' ? 0.6 : 2);
         const glow = e.obj.getObjectByName('glow') as THREE.Mesh | undefined;
@@ -279,7 +326,7 @@ export class Breakables {
     }
   }
 
-  update(state: NetState, dt: number, viewer?: THREE.Vector3) {
+  update(state: NetState, dt: number, viewer?: THREE.Vector3, cull?: DynamicCull) {
     const seen = new Set<string>();
     state?.breakables?.forEach((b: NetState, id: string) => {
       seen.add(id);
@@ -312,6 +359,10 @@ export class Breakables {
       this.dests.delete(id);
     }
     if (viewer) this.updateTags(viewer);
+    if (cull) {
+      for (const d of this.dests.values()) d.root.visible = cull.shows(d.root.position.x, d.root.position.y, d.root.position.z, d.height > 3 ? 90 : 35);
+      for (const c of this.cases.values()) c.root.visible = cull.shows(c.root.position.x, c.root.position.y - 1, c.root.position.z, 60);
+    }
     for (const s of this.shards) {
       if (s.life <= 0) continue;
       s.life -= dt;
@@ -380,11 +431,11 @@ export class Breakables {
     const near: { d: Dest; dist: number }[] = [];
     for (const d of this.dests.values()) {
       d.tag.visible = false;
-      if (d.stage >= 2) continue;
+      if (d.stage >= 2 || !d.root.visible) continue;
       const dist = d.center.distanceTo(viewer);
       if (dist < (d.height > 3 ? 14 : 8)) near.push({ d, dist });
     }
-    near.sort((a, b) => a.dist - b.dist).slice(0, 6).forEach(({ d }) => (d.tag.visible = true));
+    near.sort((a, b) => a.dist - b.dist).slice(0, 4).forEach(({ d }) => (d.tag.visible = true));
   }
 
   private burst(at: THREE.Vector3, count = 30, floor = 0) {

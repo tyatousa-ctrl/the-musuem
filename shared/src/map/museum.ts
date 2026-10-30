@@ -99,7 +99,7 @@ const portals: Portal[] = [
   // Grand staircase: side passages to the spine at ground level, the landing above.
   P('stair-dinoN', 'grandStair', 'dinoHall', 'door', 'z', -2, 0, -8, 4, 5),
   P('stair-dinoS', 'grandStair', 'dinoHall', 'door', 'z', -2, 0, 8, 4, 5),
-  P('stair-dinoUp', 'grandStair', 'dinoHall', 'door', 'z', -2, F2, 0, 4, 4),
+  { ...P('stair-dinoUp', 'grandStair', 'dinoHall', 'door', 'z', -2, F2, 0, 4, 4), seeThrough: true }, // seen from the Great Hall, straight up the stairs
   P('stair-arms', 'grandStair', 'armsArmor', 'door', 'x', 8, 0, -12, 4, 5),
   P('stair-cultures', 'grandStair', 'cultures', 'door', 'x', 8, 0, 12, 4, 5),
   P('stair-asian', 'grandStair', 'asianArt', 'door', 'x', 3, F2, -12, 3, 3.5),

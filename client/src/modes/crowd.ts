@@ -42,6 +42,7 @@ export class Crowd {
   private s = new THREE.Vector3();
   private c = new THREE.Color();
   private zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  private layers = { flag: false, held: false, marker: false };
 
   constructor() {
     this.group.name = 'tourists';
@@ -79,6 +80,7 @@ export class Crowd {
     this.t += dt;
     const k = 1 - Math.exp(-dt * 10);
     for (const v of this.shown.values()) v.seen = false;
+    this.layers = { flag: false, held: false, marker: false };
     state?.agents?.forEach((a: NetState, id: string) => {
       let v = this.shown.get(id);
       if (!v) {
@@ -109,6 +111,9 @@ export class Crowd {
       const i = v.slot;
       this.legs.setMatrixAt(i, this.m); this.torso.setMatrixAt(i, this.m); this.head.setMatrixAt(i, this.m); this.hair.setMatrixAt(i, this.m);
       this.flag.setMatrixAt(i, kind === 'guide' || kind === 'leader' ? this.m : this.zero);
+      if (kind === 'guide' || kind === 'leader') this.layers.flag = true;
+      if (kind === 'influencer' || kind === 'lost') this.layers.held = true;
+      if (MOOD_COLOR[mood] !== undefined) this.layers.marker = true;
       // Influencers hold up a phone (higher while filming); lost visitors stare at a map.
       if (kind === 'influencer' || kind === 'lost') {
         if (mood === 'filming') { this.p.y += 0.35; this.m.compose(this.p, this.q, this.s); this.p.y -= 0.35; }
@@ -130,7 +135,12 @@ export class Crowd {
       this.free.push(v.slot);
       this.shown.delete(id);
     }
+    // Draw only up to the highest slot in use (none at all when nobody is around), and skip the
+    // flag, phone/map and mood-marker layers entirely when nobody needs them.
+    let used = 0;
+    for (const v of this.shown.values()) used = Math.max(used, v.slot + 1);
     for (const im of [this.legs, this.torso, this.head, this.hair, this.marker, this.flag, this.held]) {
+      im.count = (im === this.flag && !this.layers.flag) || (im === this.held && !this.layers.held) || (im === this.marker && !this.layers.marker) ? 0 : used;
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -191,14 +201,18 @@ function circuitMarkers(): THREE.Group {
   places.forEach((p, i) => arrows.setMatrixAt(i, m.compose(new THREE.Vector3(p.x, 0.025, p.z), q.setFromAxisAngle(up, p.yaw), new THREE.Vector3(2, 1, 2))));
   g.add(arrows);
 
+  // All the closed-area rings in one draw call; a STAFF ONLY sign over each.
+  const rings: THREE.BufferGeometry[] = [];
   for (const d of museum.circuit.detours) {
     const z = museum.zones.find((x) => x.id === d.zone)!;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(z.radius - 0.15, z.radius, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xd8382a, transparent: true, opacity: 0.85, depthWrite: false }));
-    ring.position.set(z.center[0], z.center[1] + 0.03, z.center[2]);
+    rings.push(new THREE.RingGeometry(z.radius - 0.15, z.radius, 48).rotateX(-Math.PI / 2).translate(z.center[0], z.center[1] + 0.03, z.center[2]));
     const sign = label('STAFF ONLY · CLOSED', { bg: 'rgba(150,24,18,0.92)', fg: '#fff3e6', font: 'bold 46px sans-serif' });
     sign.position.set(z.center[0], 2.4, z.center[2]);
-    g.add(ring, sign);
+    g.add(sign);
   }
+  const ringMesh = new THREE.Mesh(mergeGeometries(rings)!, new THREE.MeshBasicMaterial({ color: 0xd8382a, transparent: true, opacity: 0.85, depthWrite: false }));
+  ringMesh.name = 'closedRings';
+  g.add(ringMesh);
   const [ex, , ez] = pts[pts.length - 1];
   const exit = label('EXIT', { bg: 'rgba(20,110,60,0.92)', fg: '#ffffff', w: 256, h: 128, font: 'bold 70px sans-serif', scale: 1.2 });
   exit.position.set(ex - 1, 3, ez);
@@ -209,18 +223,23 @@ function circuitMarkers(): THREE.Group {
   return g;
 }
 
-/** Velvet ropes between standing stanchions (the same rule the server uses). */
+/** Velvet ropes between standing stanchions (the same rule the server uses), all in one instanced draw call. */
 class Ropes {
   readonly group = new THREE.Group();
-  private pool: THREE.Mesh[] = [];
+  private mesh: THREE.InstancedMesh;
   private a = new THREE.Vector3();
   private b = new THREE.Vector3();
+  private m = new THREE.Matrix4();
+  private q = new THREE.Quaternion();
+  private z = new THREE.Vector3(0, 0, 1);
 
   constructor() {
     this.group.name = 'ropes';
     const geo = new THREE.CylinderGeometry(0.022, 0.022, 1, 6).rotateX(Math.PI / 2);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x9a1b2a });
-    for (let i = 0; i < 24; i++) { const m = new THREE.Mesh(geo, mat); m.visible = false; this.pool.push(m); this.group.add(m); }
+    this.mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0x9a1b2a }), 24);
+    this.mesh.frustumCulled = false;
+    this.mesh.count = 0;
+    this.group.add(this.mesh);
   }
 
   update(ctx: ClientModeCtx) {
@@ -237,16 +256,20 @@ class Ropes {
       const mid = this.a.clone().lerp(this.b, 0.5);
       mid.y -= 0.14;
       for (const [p, q] of [[this.a, mid], [mid, this.b]] as const) {
-        const m = this.pool[n++];
-        if (!m) break;
-        m.visible = true;
-        m.position.copy(p).lerp(q, 0.5);
-        m.scale.set(1, 1, p.distanceTo(q));
-        m.lookAt(q);
+        if (n >= 24) break;
+        const dir = q.clone().sub(p);
+        const len = dir.length();
+        this.q.setFromUnitVectors(this.z, dir.normalize());
+        this.m.compose(p.clone().lerp(q, 0.5), this.q, new THREE.Vector3(1, 1, len));
+        this.mesh.setMatrixAt(n++, this.m);
       }
     }
-    for (; n < this.pool.length; n++) this.pool[n].visible = false;
+    this.mesh.count = n;
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
+
+  /** Rope pieces drawn this frame (for tests). */
+  get pieces() { return this.mesh.count; }
 }
 
 /** Short comic speech bubbles over tourists. */
@@ -327,6 +350,10 @@ export const crowdControl: ClientMode = {
     crowd = null; markers = null; ropes = null; bubbles = null;
   },
   update(ctx, dt) {
+    if (markers) {
+      const p = ctx.playerPos();
+      for (const c of markers.children) if (c instanceof THREE.Sprite) c.visible = c.position.distanceTo(p) < 22;
+    }
     crowd?.update(ctx.net.state, dt);
     ropes?.update(ctx);
     bubbles?.update(dt);

@@ -38,8 +38,9 @@ export class Doors {
     }
   }
 
-  update(state: NetState, dt: number) {
+  update(state: NetState, dt: number, cull?: { shows(x: number, y: number, z: number, maxDist?: number): boolean }) {
     for (const d of this.doors) {
+      d.pivot.visible = !cull || cull.shows(d.pos.x, d.pos.y - 1.2, d.pos.z, 50);
       const open = !!state?.doors?.get(d.id)?.open;
       d.open += ((open ? 1 : 0) - d.open) * Math.min(1, dt * 3);
       d.pivot.children[0].rotation.y = d.open * Math.PI / 2;

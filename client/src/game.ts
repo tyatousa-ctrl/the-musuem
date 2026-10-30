@@ -21,6 +21,7 @@ import { DesktopOverlay } from './ui/overlay';
 import { ElevatorPanels } from './ui/elevators';
 import { CornerTimer } from './ui/corner';
 import { MiniMap, type MapPlayer } from './ui/minimap';
+import { DynamicCull } from './world/dyncull';
 import { CLIENT_MODES, lobbyHud, type ClientMode, type ClientModeCtx } from './modes';
 
 declare global { interface Window { __museum?: { ready: boolean; game: Game } } }
@@ -296,19 +297,20 @@ export class Game {
 
     const state = this.net?.state;
     this.avatars.update(state, this.net?.playerId ?? '', dt);
-    this.objects.update(state, this.net?.playerId ?? '', this.player.hands, this.avatars, dt);
-    this.breakables.update(state, dt, this.camera.getWorldPosition(this.viewPos));
-    this.doors.update(state, dt);
+    this.objects.update(state, this.net?.playerId ?? '', this.player.hands, this.avatars, dt, this.dynCull);
+    this.breakables.update(state, dt, this.camera.getWorldPosition(this.viewPos), this.dynCull);
+    this.doors.update(state, dt, this.dynCull);
     this.updatePhase(dt);
 
     const head = this.player.headPosition(tmpA);
     this.perf.rooms = this.world.cull(head);
+    this.dynCull.set(this.perf.rooms, head);
     this.world.update(dt, this.elapsed, this.camera);
     this.updateAudio(dt, head);
 
     // UI.
     this.menu.update();
-    this.elevators.update();
+    this.elevators.update(head);
     this.totem?.update();
     this.announcer.update();
     this.updateHud(xr);
@@ -363,6 +365,7 @@ export class Game {
   private viewPos = new THREE.Vector3();
   private corner!: CornerTimer;
   private minimap!: MiniMap;
+  private dynCull = new DynamicCull();
   private mapButtonPressed = false;
   /** Rooms this player has set foot in this session (Free Roam, the map). */
   readonly visited = new Set<string>();

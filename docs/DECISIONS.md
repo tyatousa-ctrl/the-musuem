@@ -103,3 +103,7 @@ One paragraph per meaningful choice, with the reason. Deviations from the brief 
 
 **How-to cards.** Every mode now has a card shown from the countdown into the first seconds of play. It gives the title, the goal in one line, the key rule, and the controls on desktop and in VR. Previously only three modes had one.
 
+**Moving things follow the museum's culling.** The static museum was culled room by room through portals, but objects, breakables, doors, elevator panels and NPCs were drawn wherever they were. During modes that pushed busy views to 233 draw calls against the 150 budget. Moving things now draw only when their room is visible from yours and they are within a sensible distance. Items held in your hand always draw. Each object is merged into one vertex-coloured mesh at creation, cached per look. Glowing and textured parts stay separate. Gloves are 4 meshes instead of 7.
+
+**Doorways overhead don't open up the floor above.** A room joined to yours only by doorways well above your head (the upstairs galleries off the Dinosaur Hall catwalks, seen from the floor) is drawn only when you're on that level or within 14 m of the doorway. From below you can't see into it. This saved about 40 draw calls in the Dinosaur Hall. The reverse case is a doorway lined up with a grand opening, which is visible from two rooms away (the top of the Grand Staircase seen from the Great Hall). It is marked in map data with a one-way `seeThrough` hint.
+

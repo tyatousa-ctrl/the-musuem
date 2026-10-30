@@ -53,5 +53,11 @@ export class ElevatorPanels {
     return null;
   }
 
-  update() { for (const p of this.panels) p.update(); }
+  /** Panels are only drawn (and redrawn) when you're near their cab. */
+  update(viewer?: THREE.Vector3) {
+    for (const p of this.panels) {
+      p.mesh.visible = !viewer || p.mesh.position.distanceTo(viewer) < 6;
+      if (p.mesh.visible) p.update();
+    }
+  }
 }

@@ -50,6 +50,8 @@ export interface Portal {
   /** Centre of the opening at floor level. */
   x: number; y: number; z: number;
   width: number; height: number;
+  /** Visibility hint: a doorway lined up with a grand opening, so the room beyond is seen from two rooms away. */
+  seeThrough?: boolean;
 }
 
 /** Walkable slab above a room floor: balconies, catwalks, mezzanines, temple platform. */

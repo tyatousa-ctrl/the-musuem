@@ -466,6 +466,40 @@ describe('Fix the Exhibit, scripted', () => {
   });
 });
 
+describe('every mode: join mid-round, host leaves mid-round', () => {
+  // A Hide and Seek late joiner seeks, so during the hiding phase they count with eyes closed ('blind') like the other seekers.
+  const modes: [string, 'active' | 'spectating' | 'blind'][] = [
+    ['ctr', 'active'], ['artifactHunt', 'active'], ['crowdControl', 'active'], ['insuranceFraud', 'spectating'],
+    ['hideSeek', 'blind'], ['fixExhibit', 'spectating'], ['tour', 'active'],
+  ];
+  for (const [mode, joinAs] of modes) {
+    it(`${mode}: a late joiner is ${joinAs}; the host leaving hands over and the round carries on`, async () => {
+      const slug = `sweep-${mode.toLowerCase()}-${Math.floor(Math.random() * 900 + 100)}`;
+      const a = await join(slug, `${mode}-a`);
+      const b = await join(slug, `${mode}-b`);
+      a.send('selectMode', { mode });
+      await waitFor(() => st(a).mode === mode, 2000, 'mode');
+      a.send('startRound', {});
+      await waitFor(() => st(b).phase === 'playing', 4000, 'playing');
+      const c = await join(slug, `${mode}-c`);
+      await waitFor(() => st(b).players.get(`${mode}-c`) !== undefined, 2000, 'joined');
+      await sleep(150);
+      expect(st(b).players.get(`${mode}-c`).status).toBe(joinAs);
+      expect(st(c).phase).toBe('playing');
+      // The host leaves for good: the longest-present player hosts, and the round goes on.
+      await a.leave(true);
+      await waitFor(() => st(b).hostId === `${mode}-b`, 3000, 'host handed over');
+      expect(['playing', 'roundEnd']).toContain(st(b).phase);
+      // The new host can end the round; everyone returns to the lobby as a party.
+      b.send('endRound', {});
+      await waitFor(() => st(b).phase === 'lobby', 4000, 'lobby');
+      expect(st(b).players.get(`${mode}-c`).status).toBe('active');
+      expect(st(b).players.size).toBe(2);
+      await Promise.all([b.leave(), c.leave()]);
+    });
+  }
+});
+
 describe('Elevators', () => {
   it('ride from the Great Hall floor to the balcony only when standing in the cab', async () => {
     const e = museum.elevators.find((x) => x.id === 'elevGreatHallN')!;

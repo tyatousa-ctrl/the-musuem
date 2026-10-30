@@ -169,6 +169,30 @@ Not done for M7: doors as a crowd tool (none sit on the circuit yet), recorded v
 | Museum map: all three floors side by side, your floor highlighted ("YOU ARE HERE"), your position and facing, friends, rooms visited, stairs, elevators, doorways. One button opens it and the same button closes it: M or the on-screen Map button (desktop), X on the left controller (VR), or Map in the menu | browser (desktop), unit; VR not verified in headset |
 | Menu: Map button; End round · back to lobby (host, during a round); fixed overlapping volume labels and clipped buttons | browser |
 
+### Full test pass (requested)
+
+| Check | Result |
+|---|---|
+| Unit and bot tests (rules, map, server, client): 84, including a sweep of every mode for join-mid-round (active / seeker counting / spectating as designed) and the host leaving mid-round (host hands over, round carries on, party returns intact) | pass |
+| Lint, typecheck, route-length rule, production build | pass |
+| Production builds as on Render (built server with `NODE_ENV=production` and CORS limited to the client; built client served statically): landing page "Start a party", invite link, second browser joins, both see each other, only the host can start, round, End round, party intact | browser (`tools/smoke/landing-flow.ts`) |
+| Every mode on desktop controls in real browsers: two players, movement, Capture the Relic, Artifact Hunt, Crowd Control, Insurance Fraud, Hide and Seek, Fix the Exhibit, Free Roam and the map | browser (all `tools/smoke/*`) |
+| Frame budget at Quest quality, empty museum: all 23 bookmarks ≤ 150 draw calls (worst 131) | screenshot run |
+| Frame budget during every mode at the six busiest views, Quest quality: all ≤ 150 draw calls (worst 146, Crowd Control from the Great Hall balcony) | browser (`tools/smoke/mode-perf.ts`) |
+
+Found and fixed during the pass:
+- **Over budget during modes.** In-round draw calls reached 233 (Insurance Fraud in the Dinosaur Hall) because moving things ignored room culling. Fixed by:
+  - culling objects, breakables and doors by room and distance;
+  - showing the elevator panels only near their cab;
+  - gloves in 4 draw calls instead of 7 (per player, local and remote);
+  - merging every multi-part object into one draw call;
+  - drawing all velvet ropes in one instanced batch;
+  - drawing no NPC batches when there are no NPCs;
+  - merging the closed-area rings; removing the lobby test props during rounds;
+  - not drawing upstairs galleries when their only doorway is high overhead.
+- **A pre-existing culling gap.** The Great Hall didn't draw the Dinosaur Hall seen through the doorway at the top of the Grand Staircase. Fixed with a one-way "see-through" doorway hint in map data.
+- **Map floor detection.** On the front plaza the map put you on the Service level.
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.
