@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
-import { museum, roomAt, tunables, type Hand, type ModeId, type PoseArray } from '@museum/shared';
+import { AGENT_KINDS, museum, roomAt, tunables, type Hand, type ModeId, type PoseArray } from '@museum/shared';
 import { detectTier, flags } from './core/config';
 import { createRenderer } from './core/renderer';
 import { getIdentity } from './core/identity';
@@ -29,6 +29,8 @@ declare global { interface Window { __museum?: { ready: boolean; game: Game } } 
 const tmpA = new THREE.Vector3();
 const tmpB = new THREE.Vector3();
 const tmpDir = new THREE.Vector3();
+const tmpC = new THREE.Vector3();
+const tmpD = new THREE.Vector3();
 const HANDS: Hand[] = ['left', 'right'];
 
 /**
@@ -413,6 +415,8 @@ export class Game {
           if (b) { this.pressButton(b); this.buttonCooldown[h] = 0.6; this.haptic(h, 0.5, 40); }
         }
         // Physical hits: fast hand into glass or into another player.
+        // A baton swung into a tourist's head (Crowd Control), else a fast hand into glass or another player.
+        if (this.batonSwing(h)) continue;
         if (hand.speed() > tunables.combat.shoveSpeed && this.hitCooldown[h] === 0) this.physicalHit(h, hand.speed());
       }
       return;
@@ -422,7 +426,8 @@ export class Game {
     const head = this.player.headPosition(tmpA);
     this.camera.getWorldDirection(tmpDir);
     if (a.grabRightPressed || a.grabLeftPressed) {
-      const h: Hand = a.grabLeftPressed ? 'left' : 'right';
+      // With a baton in the right hand (Crowd Control), E carries things in the left.
+      const h: Hand = a.grabLeftPressed || this.holdingBaton('right') ? 'left' : 'right';
       const hand = this.player.hands[h];
       if (hand.heldId) this.release(h, tmpB.copy(this.player.velocity).setY(0));
       else {
@@ -447,7 +452,11 @@ export class Game {
       const caseId = this.breakables.inFront(head, tmpDir, this.player.hands.right.heldId ? 2.4 : 2.0);
       const target = this.playerInFront(head, tmpDir, 1.5);
       const agent = !caseId && !target ? this.agentInFront(head, tmpDir, 1.8) : null;
-      if (agent) {
+      if (agent && this.holdingBaton('right')) {
+        // A bonk on the head with the baton (Crowd Control).
+        this.reachTo('right', agent.pos);
+        net.send('batonHit', { id: agent.id });
+      } else if (agent) {
         // A tap on the shoulder (Crowd Control).
         this.reachTo('right', agent.pos);
         net.send('touchAgent', { id: agent.id });
@@ -457,6 +466,8 @@ export class Game {
         this.audio.play('thud', this.breakables.position(caseId)!);
       } else if (target) {
         net.send('hitPlayer', { targetId: target, hand: 'right', speed: 3.5, dir: [tmpDir.x, 0, tmpDir.z], kind: right.heldId ? 'bonk' : 'shove' });
+      } else if (this.holdingBaton('right')) {
+        this.audio.play('whoosh'); // a swing at thin air: keep hold of the baton
       } else if (right.heldId) {
         this.release('right', tmpB.copy(tmpDir).multiplyScalar(9).add(new THREE.Vector3(0, 2, 0)));
       }
@@ -517,6 +528,34 @@ export class Game {
     this.sendPose(1, h, target);
   }
 
+  private holdingBaton(h: Hand) {
+    const id = this.player.hands[h].heldId;
+    const o = id && this.net?.state.objects.get(id);
+    return !!o && o.kind === 'tool' && o.variant === 'baton';
+  }
+
+  /** VR: the baton's shaft swung through a tourist's head. Buzzes the hand on contact. */
+  private batonSwing(h: Hand): boolean {
+    const hand = this.player.hands[h];
+    if (this.hitCooldown[h] > 0 || hand.speed() < tunables.crowdControl.batonSwingSpeed || !this.holdingBaton(h)) return false;
+    const along = tmpB.set(0, 0, -1).applyQuaternion(hand.quat);
+    const kid = AGENT_KINDS.indexOf('kid');
+    let hit: string | null = null;
+    this.net?.state?.agents?.forEach((a: NetState, id: string) => {
+      if (hit) return;
+      const head = tmpC.set(a.x, a.y + (a.kind === kid ? 1.09 : 1.56), a.z);
+      if (head.distanceTo(hand.pos) > 0.9) return;
+      for (let d = 0.1; d <= 0.56; d += 0.09) if (tmpD.copy(hand.pos).addScaledVector(along, d).distanceTo(head) < 0.2) { hit = id; return; }
+    });
+    if (!hit) return false;
+    this.net!.send('batonHit', { id: hit });
+    // The bonk you feel: a sharp knock, then a short buzz as it rebounds.
+    this.haptic(h, 1, 70);
+    setTimeout(() => this.haptic(h, 0.55, 110), 90);
+    this.hitCooldown[h] = 0.4;
+    return true;
+  }
+
   private physicalHit(h: Hand, speed: number) {
     const net = this.net!;
     const hand = this.player.hands[h];
@@ -547,7 +586,7 @@ export class Game {
     const state = this.net?.state;
     let best: string | null = null, bestScore = Infinity;
     state?.objects?.forEach((o: { holder: string }, id: string) => {
-      if (o.holder && o.holder !== this.net!.playerId) return;
+      if (o.holder) return; // in someone's hand (yours included: E with a baton must not grab the baton)
       const p = this.objects.position(id, tmpB);
       if (!p) return;
       p.sub(origin);

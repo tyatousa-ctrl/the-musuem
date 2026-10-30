@@ -144,6 +144,8 @@ export interface VisitorCircuit {
   points: Vec3[];
   /** Wrong turns lost visitors take: from circuit point `from` along `path` to a restricted zone. */
   detours: { from: number; zone: string; label: string; path: Vec3[] }[];
+  /** Choke zones (doorways and pinch points) on the circuit where crowds jam. */
+  chokes: string[];
 }
 export interface WaypointNode { id: string; pos: Vec3; rooms: RoomId[] }
 export interface WaypointEdge { a: string; b: string; len: number; oneWay?: boolean }

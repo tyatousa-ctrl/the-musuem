@@ -19,7 +19,7 @@ await page.click('button.play');
 await page.waitForFunction(`${G}.net?.status === 'connected'`, undefined, { timeout: 30000 });
 const spots: [string, number, number, number, number, number][] = [
   ['dino.nave', -12, 0, 46, 0, 0.17], ['greathall.length', 25.5, 0, 24, 0, 0.24], ['greathall.balcony', 36, 8, 22, Math.PI / 4, -0.17],
-  ['sculpture.court', -25, 0, 0, Math.PI / 2, 0.1], ['south.court', -12, 0, 51.5, Math.PI, 0.17], ['arms.hall', 5, 0, -14, 0, 0.07],
+  ['sculpture.court', -25, 0, 0, Math.PI / 2, 0.1], ['south.court', -12, 0, 51.5, Math.PI, 0.17], ['arms.hall', 5, 0, -14, 0, 0.07], ['north.temple', 21.3, 0, -66, Math.PI / 2, 0.07],
 ];
 let worst = 0;
 const measure = async (mode: string) => {

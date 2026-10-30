@@ -216,6 +216,17 @@ Found and fixed during the pass:
 | Server's pose speed limit raised from 12 to 16 m/s so running isn't rejected as cheating | unit/bot suite passes; not tested on Render |
 | Insurance Fraud guards chase at 5.5 m/s (was 3.4): you still escape by running, not by walking | bot, browser (`fraud-desktop.ts`) |
 
+### Temple pool and Crowd Control in the lobby (requested)
+
+| Item | Status |
+|---|---|
+| Temple of Dendur: the reflecting pool is much bigger and wraps round both sides of the temple platform; a little stone bridge with balustrades crosses the south arm up onto the platform. The water can't be waded | screenshot (`north.pool`, `north.bridge`, `north.temple`) |
+| Crowd Control plays in the Great Hall only: tourists come in by the north front door, loop round the information desk past the foot of the Grand Staircase, and leave by the south door. Lost ones head for the Egyptian wing, the staff-only staircase or the Greek galleries | unit (circuit walkable), bot, browser (`crowd-desktop.ts`: nobody leaves the hall) |
+| Every player gets a baton in their right hand (a late joiner too; it's theirs and nobody else can take it). Swing it into a tourist's head (VR) or click a head (desktop): the tourist sees stars for 1.6 s, and a stray turns straight round, stubborn or not. Bonk a well-behaved tourist and they just stand dazed in the way | unit, bot (reach check), browser (stars drawn) |
+| VR: a hit buzzes the controller (a sharp knock, then a short rebound buzz) | not verified in headset |
+| Desktop: with the baton in your right hand, E carries stanchions and signs in your left; clicking empty air swings instead of throwing the baton away | browser |
+| Perf: Crowd Control's worst view is now the Great Hall balcony at 150 draw calls (the budget) because the whole crowd is in one room | browser (`mode-perf.ts`) |
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Block } from '@museum/shared';
+import { museum, type Block } from '@museum/shared';
 import type { Sink } from '../sink';
 import { column, flowers, mergeParts, vitrine } from '../kit/kit';
 import { seeded } from '../textures';
@@ -117,6 +117,19 @@ export function skeleton(kind: 'rex' | 'sauropod' | 'trike'): THREE.BufferGeomet
 }
 
 // ─── Exhibit blocks ──────────────────────────────────────────────────────────
+/** Stretches of [a, b] not covered by any of `cover` (for pool rims where basins don't join). */
+function openRuns(a: number, b: number, cover: number[][]): [number, number][] {
+  const out: [number, number][] = [];
+  let u = a;
+  for (const [c0, c1] of [...cover].sort((p, q) => p[0] - q[0])) {
+    if (c1 <= u || c0 >= b) continue;
+    if (c0 > u) out.push([u, c0]);
+    u = Math.max(u, c1);
+  }
+  if (u < b) out.push([u, b]);
+  return out;
+}
+
 export function buildBlock(sink: Sink, b: Block) {
   const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, w = b.x1 - b.x0, d = b.z1 - b.z0, h = b.y1 - b.y0;
   const collide = !b.noCollide;
@@ -367,15 +380,19 @@ export function buildBlock(sink: Sink, b: Block) {
     }
     case 'pool': {
       // Stone rim and still water.
+      // Basins that touch (the Dendur pool's arms) join with no rim between them.
       const rim = 0.35;
-      sink.box('stone', b.x0, b.y0, b.z0, b.x1, b.y1, b.z0 + rim, { tint: 0xd8cfc0, collide });
-      sink.box('stone', b.x0, b.y0, b.z1 - rim, b.x1, b.y1, b.z1, { tint: 0xd8cfc0, collide });
-      sink.box('stone', b.x0, b.y0, b.z0, b.x0 + rim, b.y1, b.z1, { tint: 0xd8cfc0, collide });
-      sink.box('stone', b.x1 - rim, b.y0, b.z0, b.x1, b.y1, b.z1, { tint: 0xd8cfc0, collide });
+      const others = museum.blocks.filter((o) => o.kind === 'pool' && o !== b && o.room === b.room && o.y0 === b.y0);
+      const tint = { tint: 0xd8cfc0, collide: false };
+      for (const [u0, u1] of openRuns(b.x0, b.x1, others.filter((o) => o.z1 === b.z0).map((o) => [o.x0, o.x1]))) sink.box('stone', u0, b.y0, b.z0, u1, b.y1, b.z0 + rim, tint);
+      for (const [u0, u1] of openRuns(b.x0, b.x1, others.filter((o) => o.z0 === b.z1).map((o) => [o.x0, o.x1]))) sink.box('stone', u0, b.y0, b.z1 - rim, u1, b.y1, b.z1, tint);
+      for (const [u0, u1] of openRuns(b.z0, b.z1, others.filter((o) => o.x1 === b.x0).map((o) => [o.z0, o.z1]))) sink.box('stone', b.x0, b.y0, u0, b.x0 + rim, b.y1, u1, tint);
+      for (const [u0, u1] of openRuns(b.z0, b.z1, others.filter((o) => o.x0 === b.x1).map((o) => [o.z0, o.z1]))) sink.box('stone', b.x1 - rim, b.y0, u0, b.x1, b.y1, u1, tint);
       const dark = b.variant === 'dark'; // the Sackler Wing's black, mirror-still pool
-      sink.box('plain', b.x0 + rim, b.y0, b.z0 + rim, b.x1 - rim, b.y0 + 0.05, b.z1 - rim, { tint: dark ? 0x0d1416 : 0x1d3a48 });
-      sink.box('water', b.x0 + rim, b.y1 - 0.12, b.z0 + rim, b.x1 - rim, b.y1 - 0.1, b.z1 - rim, { tint: dark ? 0x2a3b3e : 0x7fb3c7 });
-      sink.collideBox(b.x0, b.y0, b.z0, b.x1, b.y1, b.z1);
+      sink.box('plain', b.x0, b.y0, b.z0, b.x1, b.y0 + 0.05, b.z1, { tint: dark ? 0x0d1416 : 0x1d3a48, collide: false });
+      sink.box('water', b.x0, b.y1 - 0.12, b.z0, b.x1, b.y1 - 0.1, b.z1, { tint: dark ? 0x2a3b3e : 0x7fb3c7, collide: false });
+      // Collides a little above the rim so you can't step out across the water (the bridge is the way over).
+      sink.collideBox(b.x0, b.y0, b.z0, b.x1, b.y0 + 0.9, b.z1);
       break;
     }
     case 'sculpture': {

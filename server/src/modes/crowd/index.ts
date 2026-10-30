@@ -1,5 +1,5 @@
 import {
-  MOODS, TOURIST_KINDS, alive, createCrowd, crowdStars, moodOf, ropeSegments, stepCrowd, touchTourist,
+  MOODS, TOURIST_KINDS, alive, bonkTourist, createCrowd, crowdStars, moodOf, ropeSegments, stepCrowd, touchTourist,
   type CrowdSim, type CrowdWorld, type Spawn,
 } from '@museum/shared';
 import type { PlayerT } from '../../state/schema.js';
@@ -9,6 +9,7 @@ import type { ModeContext, RoundResult, ServerMode } from '../types.js';
 const STANCHIONS: [number, number][] = [[18, -5], [18, -3], [18, -1], [18, 1], [18, 3], [18, 5]];
 const SIGNS: [number, number][] = [[15.5, -3], [15.5, 0], [15.5, 3]];
 const POST_RADIUS = 0.22;
+const batonId = (p: PlayerT) => `baton:${p.id}`;
 
 /**
  * Crowd Control (brief §17): co-op museum security. The rules and the agent
@@ -19,6 +20,19 @@ export function createCrowdMode(): ServerMode {
   let sim: CrowdSim | null = null;
   let acc = 0;
   let result: RoundResult | null = null;
+  /** When each player may land their next baton hit (ms). */
+  const batonReady = new Map<string, number>();
+
+  /** Every guard carries a baton: put one in a free hand (it's theirs; nobody else can take it). */
+  function issueBaton(ctx: ModeContext, p: PlayerT) {
+    const id = batonId(p);
+    const o = ctx.state.objects.get(id) ?? ctx.systems.objects.spawn(id, 'tool', 'baton', [p.head.px, p.feetY + 1, p.head.pz]);
+    o.owner = p.id;
+    if (o.holder === p.id) return;
+    if (!ctx.systems.objects.give(p, id, p.heldRight ? 'left' : 'right')) ctx.systems.objects.place(id, [p.head.px, p.feetY + 0.45, p.head.pz], 'rest');
+  }
+
+  const holdsBaton = (p: PlayerT) => [p.heldLeft, p.heldRight].includes(batonId(p));
 
   /** Stanchions and signs standing on the ground floor. */
   function world(ctx: ModeContext): CrowdWorld {
@@ -62,6 +76,7 @@ export function createCrowdMode(): ServerMode {
   function drainEvents(ctx: ModeContext, s: CrowdSim) {
     for (const e of s.events) {
       if (e.type === 'wave') ctx.announce(`Wave ${e.wave} of ${ctx.tunables.crowdControl.waves}. ${e.text}`, 'info');
+      else if (e.type === 'bonked') ctx.broadcast('crowd', { type: 'bonked', effect: e.turned ? 'turned' : 'dazed', pos: [e.x, s.nav.floorY + 1.6, e.z] });
       else if (e.type === 'touched') ctx.broadcast('crowd', { type: 'touched', effect: e.effect, pos: [e.x, s.nav.floorY + 1.6, e.z] });
       else if (e.type === 'wrongExit') ctx.broadcast('crowd', { type: 'wrongExit', pos: [e.x, s.nav.floorY + 1.6, e.z] });
       else if (e.type === 'filming') ctx.broadcast('crowd', { type: 'filming', pos: [e.x, s.nav.floorY + 1.6, e.z] });
@@ -102,13 +117,14 @@ export function createCrowdMode(): ServerMode {
       for (const p of ctx.players()) p.score = 0;
       STANCHIONS.forEach(([x, z], i) => ctx.systems.objects.spawn(`stanchion${i}`, 'stanchion', 'brass', [x, 0.95, z]));
       SIGNS.forEach(([x, z], i) => ctx.systems.objects.spawn(`sign${i}`, 'sign', 'thisWay', [x, 1.0, z]));
-      for (const p of ctx.players()) ctx.teleport(p, mode.spawnFor(ctx, p));
+      for (const p of ctx.players()) { ctx.teleport(p, mode.spawnFor(ctx, p)); issueBaton(ctx, p); }
+      batonReady.clear();
       sync(ctx, sim);
     },
 
     // Join immediately as another security guard; the current wave carries on.
-    onPlayerJoin(ctx, p) { ctx.teleport(p, mode.spawnFor(ctx, p)); },
-    onPlayerLeave() {},
+    onPlayerJoin(ctx, p) { ctx.teleport(p, mode.spawnFor(ctx, p)); issueBaton(ctx, p); },
+    onPlayerLeave(ctx, p) { ctx.systems.objects.remove(batonId(p)); batonReady.delete(p.id); },
 
     spawnFor(ctx, p: PlayerT): Spawn {
       const list = ctx.map.spawns.lobby;
@@ -129,7 +145,18 @@ export function createCrowdMode(): ServerMode {
     },
 
     onRequest(ctx, p, type, payload) {
-      if (type !== 'touchAgent' || !sim || p.status !== 'active') return;
+      if (!sim || p.status !== 'active') return;
+      if (type === 'batonHit') {
+        // A baton to a tourist's head: the client spots the hit; the server checks the baton and the reach.
+        const id = Number(String((payload as { id: string }).id).slice(1));
+        const t = alive(sim).find((x) => x.id === id);
+        const cfg = ctx.tunables.crowdControl;
+        if (!t || !holdsBaton(p) || ctx.now() < (batonReady.get(p.id) ?? 0)) return;
+        if (Math.hypot(p.head.px - t.x, p.head.pz - t.z) > cfg.batonReach || Math.abs(p.feetY - sim.nav.floorY) > 1) return;
+        if (bonkTourist(sim, t.id)) batonReady.set(p.id, ctx.now() + cfg.batonCooldownSec * 1000);
+        return;
+      }
+      if (type !== 'touchAgent') return;
       const id = Number(String((payload as { id: string }).id).slice(1));
       const t = alive(sim).find((x) => x.id === id);
       // Desktop reach: the tourist must be right in front of the player.
@@ -144,6 +171,8 @@ export function createCrowdMode(): ServerMode {
       ctx.systems.agents.clear();
       ctx.systems.objects.removeKind('stanchion');
       ctx.systems.objects.removeKind('sign');
+      for (const o of [...ctx.state.objects.values()]) if (o.kind === 'tool' && o.variant === 'baton') ctx.systems.objects.remove(o.id);
+      batonReady.clear();
       const st = ctx.state;
       st.ccWave = 0; st.ccCongestion = 0; st.ccBreach = 0; st.ccScore = 0; st.ccRouted = 0; st.ccSpawned = 0;
     },

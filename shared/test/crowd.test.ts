@@ -3,7 +3,7 @@ import { museum } from '../src/map/museum.js';
 import { cloneTunables } from '../src/config/tunables.js';
 import { AgentNav, ropeSegments } from '../src/rules/agents.js';
 import {
-  alive, createCrowd, crowdStars, moodOf, stepCrowd, touchTourist, waveRoster,
+  alive, bonkTourist, createCrowd, crowdStars, moodOf, stepCrowd, touchTourist, waveRoster,
   type CrowdSim, type CrowdWorld, type Tourist, type TouristKind,
 } from '../src/rules/crowd.js';
 
@@ -111,6 +111,26 @@ describe('Crowd Control rules', () => {
     expect(t.dir).toBe(1);
   });
 
+  it('a baton bonk dazes a visitor, then turns a stray round (even a stubborn one) and its group with it', () => {
+    const { sim, t } = solo('stubborn', (t) => { t.x = 30; t.z = -14; t.dir = -1; t.idx = 0; });
+    const x = t.x, z = t.z;
+    expect(bonkTourist(sim, t.id)).toBe(true);
+    expect(moodOf(sim, t)).toBe('dazed');
+    expect(t.dir).toBe(1);
+    expect(bonkTourist(sim, t.id)).toBe(false); // already seeing stars
+    run(sim, 1);
+    expect(Math.hypot(t.x - x, t.z - z)).toBe(0); // stands still while dazed
+    run(sim, 1);
+    expect(moodOf(sim, t)).toBe('ok');
+    expect(Math.hypot(t.x - x, t.z - z)).toBeGreaterThan(0.3);
+    expect(sim.events.some((e) => e.type === 'bonked' && e.turned)).toBe(true);
+    // A happy visitor: dazed, but still on their way.
+    const h = solo('normal', (t) => { t.x = 30; t.z = -14; });
+    bonkTourist(h.sim, h.t.id);
+    expect(h.t.dir).toBe(1);
+    expect(h.sim.events.some((e) => e.type === 'bonked' && !e.turned)).toBe(true);
+  });
+
   it('a wrong-way visitor nobody stops leaves by the entrance and costs a point', () => {
     const { sim } = solo('normal', (t) => { t.x = 30; t.z = -14; t.dir = -1; t.idx = 0; });
     run(sim, 20);
@@ -174,10 +194,11 @@ describe('Crowd Control rules', () => {
   });
 
   it('an influencer filming in a doorway jams it and the congestion meter rises', () => {
-    const { sim, t } = solo('influencer', (t) => { t.x = 13.5; t.z = -20.5; t.idx = 3; });
+    // The pinch point at the foot of the Grand Staircase.
+    const { sim, t } = solo('influencer', (t) => { t.x = 17.5; t.z = -1.5; t.idx = 4; });
     sim.rng = () => 0; // always films
     for (let i = 0; i < 6; i++) {
-      const extra = { ...t, id: 100 + i, kind: 'normal' as const, x: 12 + (i % 3) * 0.6 - 0.6, z: -20 + Math.floor(i / 3) * 0.7, trail: [] as [number, number][] };
+      const extra = { ...t, id: 100 + i, kind: 'normal' as const, x: 17.5 + (i % 3) * 0.6 - 0.6, z: 0.5 + Math.floor(i / 3) * 0.7, trail: [] as [number, number][] };
       sim.tourists.push(extra);
     }
     run(sim, 1);

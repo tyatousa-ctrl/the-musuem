@@ -198,7 +198,7 @@ export class LobbyTotem {
       y += 56;
     }
     if (s.mode === 'crowdControl') {
-      p.text('Five waves of tourists. Turn the strays around.', 50, y + 38, 26, CREAM);
+      p.text('Five waves of tourists in the Great Hall. Batons out!', 50, y + 38, 26, CREAM);
       y += 56;
     }
 
@@ -300,8 +300,8 @@ export const HOW_TO: Partial<Record<ModeId, string[]>> = {
   crowdControl: [
     'CROWD CONTROL · co-op security',
     'Tourists should follow the gold floor arrows. Red marker = wrong way · amber = heading into STAFF ONLY · purple = filming.',
-    "Touch them to turn them around. Turn a group's flag-holder and the whole group follows.",
-    'Brass posts make velvet ropes; signs send strays back.   Desktop: click a tourist · E carry   ·   VR: touch · grip',
+    'Everyone has a baton. Bonk a stray on the head (or tap them) to turn them around; a group follows its flag-holder.',
+    'Bonked tourists see stars and stop in the way, so go easy. Posts make ropes; signs send strays back.   Desktop: click a head   ·   VR: swing',
   ],
   insuranceFraud: [
     'INSURANCE FRAUD · biggest bill wins',

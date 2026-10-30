@@ -8,7 +8,7 @@ import { loadPref, savePref } from '../core/identity';
  * licensing; real CC0 recordings can replace any buffer later through the
  * asset manifest. Two independent buses, Music and FX, persisted locally.
  */
-export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door' | 'ding' | 'huff' | 'shutter' | 'cuckoo' | 'click';
+export type Sfx = 'crack' | 'shatter' | 'thud' | 'whoosh' | 'ko' | 'pickup' | 'drop' | 'score' | 'ui' | 'stepStone' | 'stepWood' | 'stepConcrete' | 'stepMetal' | 'bad' | 'door' | 'ding' | 'huff' | 'shutter' | 'cuckoo' | 'click' | 'bonk';
 
 const ACOUSTICS: Record<Room['acoustic'], { decay: number; wet: number; amb: 'murmur' | 'street' | 'water' | 'hum' | 'none' }> = {
   hall: { decay: 3.2, wet: 0.45, amb: 'murmur' },
@@ -231,6 +231,12 @@ export class AudioEngine {
       const f = 1200 * Math.exp(-t * 2.2) + 200;
       const boing = t > 0.6 ? Math.sin(2 * Math.PI * 140 * t * (1 + 0.3 * Math.sin(t * 40))) * env(t - 0.6, 0.005, 0.15) : 0;
       return Math.sin(2 * Math.PI * f * t) * 0.35 * (t < 0.6 ? 1 : 0) + boing * 0.6;
+    }));
+    // A rubber baton on a head: a hollow wooden tok, then a cartoon boing.
+    this.buffers.set('bonk', this.buffer(0.7, (t) => {
+      const tok = Math.sin(2 * Math.PI * 520 * t * (1 - t * 2)) * env(t, 0.001, 0.035) * 0.9;
+      const boing = t > 0.05 ? Math.sin(2 * Math.PI * (260 + 120 * Math.sin((t - 0.05) * 30)) * t) * env(t - 0.05, 0.01, 0.18) * 0.45 : 0;
+      return tok + boing;
     }));
     this.buffers.set('pickup', this.buffer(0.5, (t) => (Math.sin(2 * Math.PI * 880 * t) + Math.sin(2 * Math.PI * 1320 * t) * 0.6) * env(t, 0.005, 0.15) * 0.35));
     this.buffers.set('drop', this.buffer(0.3, (t) => (Math.sin(2 * Math.PI * 160 * t) * 0.7 + rnd() * 0.3) * env(t, 0.002, 0.06)));

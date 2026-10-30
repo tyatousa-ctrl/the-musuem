@@ -28,6 +28,8 @@ export const BOOKMARKS: Bookmark[] = [
   { id: 'north.court', pos: [-12, 1.65, -51.5], yaw: 340, pitch: 10 },
   { id: 'north.temple', pos: [21.3, 1.65, -66], yaw: 90, pitch: 4 },
   { id: 'north.dendur', pos: [30, 1.65, -55], yaw: 62, pitch: 6 },
+  { id: 'north.bridge', pos: [6, 1.65, -51.5], yaw: 20, pitch: -6 },
+  { id: 'north.pool', pos: [4, 11, -51], yaw: 0, pitch: -38 },
   { id: 'south.court', pos: [-12, 1.65, 51.5], yaw: 180, pitch: 10 },
   { id: 'service.corridor', pos: [24, -4.35, -40], yaw: 180, pitch: 0 },
 ];

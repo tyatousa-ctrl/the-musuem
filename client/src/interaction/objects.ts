@@ -147,6 +147,8 @@ function makeTool(variant: string): THREE.Object3D {
       break;
     case 'axe': handle(0.45); add(new THREE.BoxGeometry(0.2, 0.15, 0.03), red, 0.09, 0.38); add(new THREE.BoxGeometry(0.03, 0.17, 0.035), steel, 0.2, 0.38); break;
     case 'sledgehammer': handle(0.5, wood, 0.025); add(new THREE.BoxGeometry(0.3, 0.13, 0.13), steel, 0, 0.55); break;
+    // Crowd Control: a security guard's black rubber baton with a grip and a side handle.
+    case 'baton': handle(0.5, m(0x1c1c1e), 0.02); add(new THREE.CylinderGeometry(0.026, 0.026, 0.16, 8), m(0x3a3a3c), 0, -0.3); add(new THREE.CylinderGeometry(0.014, 0.014, 0.11, 6), m(0x1c1c1e), 0.06, -0.12, 0, Math.PI / 2); break;
     case 'ball': g.add(new THREE.Mesh(new THREE.SphereGeometry(0.24, 16, 12), m(0x9a9282))); break;
     default: handle(0.3);
   }

@@ -123,6 +123,17 @@ export class ObjectSystem {
     this.mode()?.onReleased?.(this.ctx(), player, o, speed > 1.5);
   }
 
+  /** Put an object straight into a player's hand (a mode handing out equipment). */
+  give(player: PlayerT, objectId: string, hand: Hand) {
+    const o = this.state.objects.get(objectId);
+    if (!o || (hand === 'left' ? player.heldLeft : player.heldRight) !== '') return false;
+    if (o.holder) this.clearHand(o.holder, o.id);
+    o.holder = player.id; o.hand = hand; o.status = 'carried';
+    o.vx = o.vy = o.vz = 0;
+    if (hand === 'left') player.heldLeft = o.id; else player.heldRight = o.id;
+    return true;
+  }
+
   /** Drop everything a player holds at a point (KO, disconnect). */
   dropAll(player: PlayerT, at: V3) {
     for (const hand of ['left', 'right'] as Hand[]) {

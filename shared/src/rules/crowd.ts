@@ -12,8 +12,8 @@ export const TOURIST_KINDS = ['normal', 'kid', 'leader', 'follower', 'stubborn',
 export type TouristKind = (typeof TOURIST_KINDS)[number];
 /** Every synced NPC kind, by index (tourists, then Insurance Fraud's guards). */
 export const AGENT_KINDS = [...TOURIST_KINDS, 'guard'] as const;
-/** Moods by index; 'alert' is a guard in pursuit. */
-export const MOODS = ['ok', 'wrong', 'offRoute', 'filming', 'huffy', 'waiting', 'alert'] as const;
+/** Moods by index; 'alert' is a guard in pursuit, 'dazed' a tourist seeing stars after a baton bonk. */
+export const MOODS = ['ok', 'wrong', 'offRoute', 'filming', 'huffy', 'waiting', 'alert', 'dazed'] as const;
 export type Mood = (typeof MOODS)[number];
 
 type Cfg = Tunables['crowdControl'];
@@ -40,7 +40,7 @@ export interface Tourist {
   followers: number;
   /** Leaders: breadcrumbs every half metre, so followers walk where the leader walked. */
   trail: [number, number][]; trailBase: number;
-  calm: number; huffy: number; filming: number; filmCooldown: number; lastChoke: string;
+  calm: number; huffy: number; dazed: number; filming: number; filmCooldown: number; lastChoke: string;
   signCooldown: number; touchCooldown: number; stuck: number; waiting: number;
   breached: boolean;
   gone: '' | 'routed' | 'wrong' | 'stuck';
@@ -51,6 +51,7 @@ export type TouchEffect = 'turned' | 'huffy' | 'ignored' | 'again' | 'sign';
 export type CrowdEvent =
   | { type: 'wave'; wave: number; text: string }
   | { type: 'touched'; id: number; effect: TouchEffect; x: number; z: number }
+  | { type: 'bonked'; id: number; turned: boolean; x: number; z: number }
   | { type: 'routed'; id: number }
   | { type: 'wrongExit'; id: number; x: number; z: number }
   | { type: 'breach'; id: number; label: string; x: number; z: number }
@@ -88,7 +89,7 @@ export interface CrowdSim {
 }
 
 export const WAVE_TEXT = [
-  'The doors are open! Keep visitors on the arrows. Touch anyone going the wrong way.',
+  'The doors are open! Keep visitors on the arrows round the Great Hall. Bonk anyone going the wrong way with your baton.',
   'Families and school groups! Turn the LEADER around and the group follows.',
   'Stubborn and lost visitors! Some need three taps; some head for STAFF ONLY areas.',
   'Tour guides and influencers! Guides gather crowds; influencers stop to film in doorways.',
@@ -130,7 +131,7 @@ export function createCrowd(map: MuseumMap, cfg: Cfg, rng: Rng = Math.random): C
   const labels = new Map(map.circuit.detours.map((d) => [d.zone, d.label]));
   const sim: CrowdSim = {
     cfg, nav: new AgentNav(map), circuit: map.circuit, rng,
-    chokes: map.zones.filter((z) => z.kind === 'choke'),
+    chokes: map.zones.filter((z) => z.kind === 'choke' && map.circuit.chokes.includes(z.id)),
     closed: map.zones.filter((z) => z.kind === 'restricted' && labels.has(z.id)).map((zone) => ({ zone, label: labels.get(zone.id)! })),
     t: 0, wave: 0, queue: [], nextSpawn: 0, waveArrivedAt: -1,
     tourists: [], nextId: 1,
@@ -161,7 +162,7 @@ function newTourist(sim: CrowdSim, kind: TouristKind, x: number, z: number): Tou
     touchesLeft: kind === 'stubborn' ? cfg.stubbornTouches : 1,
     ignoreFirst: kind === 'kid' && sim.rng() < 0.5,
     leader: -1, cursor: 0, slot: 0, followers: 0, trail: [[x, z]], trailBase: 0,
-    calm: 0, huffy: 0, filming: 0, filmCooldown: 0, lastChoke: '',
+    calm: 0, huffy: 0, dazed: 0, filming: 0, filmCooldown: 0, lastChoke: '',
     signCooldown: 0, touchCooldown: 0, stuck: 0, waiting: 0, breached: false, gone: '',
   };
 }
@@ -185,6 +186,7 @@ function spawnUnit(sim: CrowdSim, u: SpawnUnit) {
 
 /** The mood shown above a tourist's head (and used for scoring). */
 export function moodOf(sim: CrowdSim, t: Tourist): Mood {
+  if (t.dazed > 0) return 'dazed';
   if (t.filming > 0) return 'filming';
   if (t.huffy > 0) return 'huffy';
   let s = t;
@@ -228,6 +230,29 @@ export function touchTourist(sim: CrowdSim, id: number): TouchEffect | null {
   }
   sim.events.push({ type: 'touched', id, effect, x: t.x, z: t.z });
   return effect;
+}
+
+/**
+ * A security baton to the head: the tourist sees stars for a moment, then
+ * anyone who had strayed turns straight round (stubborn or not; kids too).
+ * Bonking a well-behaved visitor just leaves them standing dazed in the way.
+ */
+export function bonkTourist(sim: CrowdSim, id: number): boolean {
+  const t = byId(sim, id);
+  if (!t || t.gone || t.dazed > 0) return false;
+  t.dazed = sim.cfg.batonDazeSec;
+  t.huffy = 0;
+  t.filming = 0;
+  const lead = t.route === 'follow' ? byId(sim, t.leader) : t;
+  const strayed = !!lead && ((lead.route === 'circuit' && lead.dir < 0) || lead.route === 'detour');
+  // Bonking a follower turns their group's leader (the whole group follows).
+  if (strayed && lead) {
+    turnAround(sim, lead);
+    lead.touchesLeft = lead.kind === 'stubborn' ? sim.cfg.stubbornTouches : 1;
+    lead.ignoreFirst = false;
+  }
+  sim.events.push({ type: 'bonked', id, turned: strayed, x: t.x, z: t.z });
+  return true;
 }
 
 function strayWrong(sim: CrowdSim, t: Tourist, at: number) {
@@ -384,6 +409,7 @@ export function stepCrowd(sim: CrowdSim, dt: number, world: CrowdWorld = { posts
   const people = alive(sim);
   for (const t of people) {
     t.touchCooldown -= dt; t.signCooldown -= dt; t.calm -= dt; t.huffy -= dt; t.filmCooldown -= dt;
+    if (t.dazed > 0) { t.dazed -= dt; t.stuck = 0; continue; }
     if (t.filming > 0) { t.filming -= dt; continue; }
 
     // Signs nudge strays back onto the route (kids don't read signs).

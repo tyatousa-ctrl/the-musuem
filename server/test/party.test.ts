@@ -262,7 +262,7 @@ describe('Artifact Hunt, scripted', () => {
 });
 
 describe('Crowd Control, scripted', () => {
-  it('tourists arrive, a touch turns a wrong-way tourist around, stanchions are grabbable, late joiners play', async () => {
+  it('tourists arrive, a touch or a baton bonk turns a wrong-way tourist around, stanchions are grabbable, late joiners play', async () => {
     const a = await join('crowd-party-112', 'c1');
     const events: { type: string; effect?: string }[] = [];
     a.onMessage('crowd', (m: { type: string; effect?: string }) => events.push(m));
@@ -288,6 +288,33 @@ describe('Crowd Control, scripted', () => {
     };
     expect(await touched()).toBe(true);
 
+    // Everyone carries a baton in their right hand; a bonk on a wrong-way head turns them round and dazes them.
+    const baton = st(a).players.get('c1').heldRight;
+    expect(st(a).objects.get(baton)?.variant).toBe('baton');
+    const bonked = async () => {
+      for (let i = 0; i < 30; i++) {
+        let target: any, id = '';
+        st(a).agents.forEach((g: any, k: string) => { if (!target && g.mood === 1) { target = g; id = k; } });
+        if (target) { pose(a, target.x + 1.2, 0, target.z); await sleep(60); a.send('batonHit', { id }); }
+        await sleep(150);
+        if (events.some((e) => e.type === 'bonked' && e.effect === 'turned')) return true;
+      }
+      return false;
+    };
+    expect(await bonked()).toBe(true);
+    let dazed = 0;
+    st(a).agents.forEach((g: any) => { if (g.mood === 7) dazed++; });
+    expect(dazed).toBeGreaterThan(0);
+    // Out of reach: no bonk.
+    const before = events.filter((e) => e.type === 'bonked').length;
+    let far = '';
+    st(a).agents.forEach((g: any, k: string) => { if (!far && g.mood !== 7) far = k; });
+    pose(a, 30, 0, 26);
+    await sleep(80);
+    a.send('batonHit', { id: far });
+    await sleep(300);
+    expect(events.filter((e) => e.type === 'bonked').length).toBe(before);
+
     // The tools: six stanchions and three signs, grabbable like any other object.
     let stanchion: any;
     let tools = 0;
@@ -295,9 +322,9 @@ describe('Crowd Control, scripted', () => {
     expect(tools).toBe(9);
     pose(a, stanchion.x + 0.4, 0, stanchion.z, [stanchion.x, stanchion.y, stanchion.z]);
     await sleep(80);
-    a.send('grab', { objectId: stanchion.id, hand: 'right' });
+    a.send('grab', { objectId: stanchion.id, hand: 'left' });
     await waitFor(() => st(a).objects.get(stanchion.id)?.status === 'carried', 2000, 'stanchion carried');
-    a.send('release', { hand: 'right', pos: [stanchion.x + 0.4, 1.2, stanchion.z + 2], vel: [0, 0, 0] });
+    a.send('release', { hand: 'left', pos: [stanchion.x + 0.4, 1.2, stanchion.z + 2], vel: [0, 0, 0] });
     await waitFor(() => st(a).objects.get(stanchion.id)?.status === 'rest', 2000, 'stanchion placed');
     expect(st(a).objects.get(stanchion.id).y).toBeCloseTo(0.95, 2); // stands upright on the floor
 
@@ -306,12 +333,13 @@ describe('Crowd Control, scripted', () => {
     await waitFor(() => st(a).players.get('c2') !== undefined, 2000, 'joined');
     expect(st(a).players.get('c2').status).toBe('active');
     await waitFor(() => st(b).agents?.size > 0, 2000, 'late joiner sees tourists');
+    await waitFor(() => st(a).objects.get(st(a).players.get('c2').heldRight)?.variant === 'baton', 2000, 'late joiner gets a baton');
 
     a.send('endRound', {});
     await waitFor(() => st(a).phase === 'lobby', 4000, 'lobby');
     expect(st(a).agents.size).toBe(0);
     let left = 0;
-    st(a).objects.forEach((o: any) => { if (o.kind === 'stanchion' || o.kind === 'sign') left++; });
+    st(a).objects.forEach((o: any) => { if (o.kind === 'stanchion' || o.kind === 'sign' || o.variant === 'baton') left++; });
     expect(left).toBe(0);
     await Promise.all([a.leave(), b.leave()]);
   });

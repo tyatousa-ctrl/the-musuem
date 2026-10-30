@@ -60,7 +60,7 @@ await page.waitForFunction(`${G}.net.state.agents.size >= 3`, undefined, { timeo
 const g1 = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => { if (!g && Math.abs(a.y) < 1) g = { x: a.x, z: a.z, yaw: a.yaw }; }); return g; })()`) as any;
 // Stand 6 m in front of a guard, inside its cone, and look at it.
 await page.evaluate(`(() => { const g = ${G}; const fx = -Math.sin(${g1.yaw}), fz = -Math.cos(${g1.yaw}); g.player.teleport([${g1.x} + fx * 6, 0, ${g1.z} + fz * 6], ${g1.yaw} + Math.PI); g.player.pitch = -0.35; })()`);
-await page.waitForTimeout(1500);
+await page.waitForFunction(`window.__museum.game.scene.getObjectByName('visionCones')?.children[0].geometry.attributes.position?.count > 0`, undefined, { timeout: 8000 }).catch(() => {});
 const cones = await page.evaluate(`${G}.mode.update && window.__museum.game.scene.getObjectByName('visionCones').children[0].geometry.attributes.position.count / 42`) as number;
 console.log('vision cones drawn:', cones, '· seen:', await page.evaluate(`${G}.net.me().seen`));
 if (cones < 3) fail('vision cones missing');

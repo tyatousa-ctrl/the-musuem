@@ -179,7 +179,7 @@ const platforms: Platform[] = [
   { id: 'catLandW', room: 'dinoHall', x0: -19, x1: -16, z0: 46, z1: 50, y: F2, style: 'catwalk' },
   // Courts: temple podium, mezzanines leading to the paintings upstairs.
   // The Sackler Wing (after the Met): the temple's granite platform, its long axis parallel to the glass wall.
-  { id: 'dendurPlatform', room: 'northCourt', x0: -8, x1: 10, z0: -73, z1: -59, y: 1.0, solid: true, style: 'podium' },
+  { id: 'dendurPlatform', room: 'northCourt', x0: -8, x1: 10, z0: -70.5, z1: -61.5, y: 1.0, solid: true, style: 'podium' },
   { id: 'mezzN', room: 'northCourt', x0: -60, x1: -30, z0: -54, z1: -50, y: F2, style: 'mezzanine' },
   { id: 'mezzS', room: 'southCourt', x0: -60, x1: -30, z0: 50, z1: 54, y: F2, style: 'mezzanine' },
   // Exterior terrace in front of the doors.
@@ -192,7 +192,8 @@ const stairs: Stair[] = [
   { id: 'catW', room: 'dinoHall', x0: -19, x1: -16, z0: 32, z1: 46, y0: 0, y1: F2, dir: '+z', style: 'metal' },
   { id: 'courtStairN', room: 'northCourt', x0: -30, x1: -16, z0: -54, z1: -50.5, y0: 0, y1: F2, dir: '-x', style: 'stone' },
   { id: 'courtStairS', room: 'southCourt', x0: -30, x1: -16, z0: 50.5, z1: 54, y0: 0, y1: F2, dir: '-x', style: 'stone' },
-  { id: 'dendurSteps', room: 'northCourt', x0: -2, x1: 6, z0: -59, z1: -56.6, y0: 0, y1: 1.0, dir: '-z', style: 'stone' },
+  // The little bridge over the south arm of the pool, up onto the temple platform.
+  { id: 'dendurBridge', room: 'northCourt', x0: 0, x1: 3, z0: -61.5, z1: -57.5, y0: 0, y1: 1.0, dir: '-z', style: 'stone' },
   { id: 'svcStairN', room: 'stairN', x0: 22, x1: 26, z0: -73, z1: -61, y0: -6, y1: 0, dir: '-z', style: 'concrete' },
   { id: 'svcStairS', room: 'stairS', x0: 22, x1: 26, z0: 61, z1: 73, y0: -6, y1: 0, dir: '+z', style: 'concrete' },
   { id: 'frontSteps', room: 'exterior', x0: 42, x1: 50, z0: -16, z1: 16, y0: -2.4, y1: 0, dir: '-x', style: 'stone' },
@@ -235,6 +236,8 @@ const rails: Rail[] = [
   // Court mezzanines and stairs.
   R(-56.5, -54, -30, -54, F2, F2, 'glass'), stairRail(st('courtStairN'), 'z0', 'glass'),
   R(-56.5, 54, -30, 54, F2, F2, 'glass'), stairRail(st('courtStairS'), 'z1', 'glass'),
+  // The Dendur bridge's parapets.
+  stairRail(st('dendurBridge'), 'x0', 'balustrade'), stairRail(st('dendurBridge'), 'x1', 'balustrade'),
   // Service stair holes in the courts (entry side left open).
   R(22, -73, 22, -61, 0, 0, 'metal'), R(26, -73, 26, -61, 0, 0, 'metal'), R(22, -61, 26, -61, 0, 0, 'metal'),
   R(22, 61, 22, 73, 0, 0, 'metal'), R(26, 61, 26, 73, 0, 0, 'metal'), R(22, 61, 26, 61, 0, 0, 'metal'),
@@ -326,7 +329,11 @@ const blocks: Block[] = [
   // The Temple of Dendur: the gate faces east across the reflecting pool; the temple stands behind it.
   B('temple', 'northCourt', 'temple', -5, 3, -69.5, -62.5, 1.0, 6.6, { variant: 'dendur' }),
   B('gateway', 'northCourt', 'temple', 6.4, 7.8, -67.8, -64.2, 1.0, 8.2, { variant: 'pylon' }),
-  B('pool', 'northCourt', 'pool', 10, 18, -72, -60, 0, 0.45, { variant: 'dark' }),
+  // The reflecting pool: a long basin in front of the gate whose arms wrap round both sides of the platform.
+  B('pool', 'northCourt', 'pool', 10, 18, -74, -57.5, 0, 0.45, { variant: 'dark' }),
+  B('poolN', 'northCourt', 'pool', -10, 10, -74, -70.5, 0, 0.45, { variant: 'dark' }),
+  B('poolSW', 'northCourt', 'pool', -10, 0, -61.5, -57.5, 0, 0.45, { variant: 'dark' }),
+  B('poolSE', 'northCourt', 'pool', 3, 10, -61.5, -57.5, 0, 0.45, { variant: 'dark' }),
   B('papyrus', 'northCourt', 'planter', 13, 14.5, -62.4, -60.9, 0.3, 1.8, { variant: 'papyrus', noCollide: true }),
   // Two seated pharaohs in dark granite at the end of the pool, looking toward the temple.
   B('pharaohN', 'northCourt', 'statue', 18.5, 19.8, -70.7, -69.3, 0, 2.7, { variant: 'pharaoh' }),
@@ -381,18 +388,13 @@ const zones: Zone[] = [
   { id: 'captureA', kind: 'capture', room: 'northCourt', center: [-12, 0, -63], radius: 3 },
   { id: 'captureB', kind: 'capture', room: 'southCourt', center: [-12, 0, 63], radius: 3 },
   { id: 'exitAvenue', kind: 'exit', room: 'exterior', center: [46, -1.2, 0], radius: 6 },
-  // Crowd Control: doorways on the visitor circuit where crowds jam, and the areas closed to visitors.
-  { id: 'chokeArms', kind: 'choke', room: 'armsArmor', center: [12, 0, -20], radius: 2.5 },
-  { id: 'chokeDinoArms', kind: 'choke', room: 'dinoHall', center: [-2, 0, -30], radius: 2.5 },
-  { id: 'chokeSculpture', kind: 'choke', room: 'sculptureCourt', center: [-22, 0, -2], radius: 3 },
-  { id: 'chokeModern', kind: 'choke', room: 'modern', center: [-41, 0, 12], radius: 2.5 },
-  { id: 'chokeDinoModern', kind: 'choke', room: 'dinoHall', center: [-22, 0, 30], radius: 2.5 },
-  { id: 'chokeCultures', kind: 'choke', room: 'cultures', center: [-2, 0, 30], radius: 2.5 },
-  { id: 'chokeGreatHallS', kind: 'choke', room: 'greatHall', center: [12, 0, 20], radius: 2.5 },
+  // Crowd Control (in the Great Hall): pinch points where crowds jam, and the areas closed to visitors.
+  { id: 'chokeEntrance', kind: 'choke', room: 'greatHall', center: [36, 0, -9], radius: 2.5 },
+  { id: 'chokeStairFoot', kind: 'choke', room: 'greatHall', center: [17.5, 0, 0], radius: 2.5 },
+  { id: 'chokeExit', kind: 'choke', room: 'greatHall', center: [36, 0, 9], radius: 2.5 },
+  { id: 'closedGreek', kind: 'restricted', room: 'greek', center: [33, 0, 31.5], radius: 2.5 },
   { id: 'closedEgypt', kind: 'restricted', room: 'egyptS', center: [32, 0, -31], radius: 2.5 },
   { id: 'closedStair', kind: 'restricted', room: 'grandStair', center: [9, 0, -9.5], radius: 2.5 },
-  { id: 'closedNorthCourt', kind: 'restricted', room: 'northCourt', center: [-12, 0, -55.5], radius: 2.5 },
-  { id: 'closedSouthCourt', kind: 'restricted', room: 'southCourt', center: [-41, 0, 55.5], radius: 2.5 },
   { id: 'restrictedService', kind: 'restricted', room: 'service', center: [24, -6, 0], radius: 30 },
   // Artifact Hunt: carry finds to the Registrar's Desk (the information desk) to secure them.
   { id: 'registrarDesk', kind: 'desk', room: 'greatHall', center: [25.5, 0, 0], radius: 4.5 },
@@ -472,24 +474,23 @@ const landmarks: MuseumMap['landmarks'] = [
   { id: 'desk', room: 'greatHall', pos: [30, 0, 0] },
 ];
 
-/**
- * The one-way visitor circuit: in through the Great Hall, Arms and Armor, the
- * Dinosaur Hall, the Sculpture Court, Modern, back across the Dinosaur Hall,
- * through Africa/Oceania/Americas and out of the Great Hall's south door.
+/*
+ * The one-way visitor circuit for Crowd Control, all in the Great Hall: in by
+ * the north front door, round the information desk past the foot of the Grand
+ * Staircase, out by the south front door. Lost visitors wander off toward the
+ * Egyptian wing, the staff-only staircase or the Greek galleries.
  */
 const circuit: MuseumMap['circuit'] = {
   points: [
-    [38.5, 0, 0], [30, 0, -14], [15.5, 0, -21], [12, 0, -20], [7.5, 0, -29], [-2, 0, -30],
-    [-6, 0, -20], [-17, 0, -12], [-22, 0, -2], [-38, 0, -2], [-41, 0, 12], [-35, 0, 20],
-    [-28, 0, 29], [-22, 0, 30], [-18, 0, 22], [-6, 0, 22], [-2, 0, 30], [1, 0, 27],
-    [1, 0, 22], [12, 0, 20], [30, 0, 14], [38.5, 0, 8],
+    [38.5, 0, -8], [33, 0, -14], [24, 0, -17], [17.5, 0, -12], [17.5, 0, 0],
+    [17.5, 0, 12], [24, 0, 17], [33, 0, 14], [38.5, 0, 8],
   ],
   detours: [
     { from: 1, zone: 'closedEgypt', label: 'the closed Egyptian wing', path: [[33, 0, -24], [33, 0, -28], [32, 0, -31]] },
-    { from: 2, zone: 'closedStair', label: 'the staff-only staircase', path: [[16, 0, -12], [13, 0, -7.5], [12, 0, -7], [9, 0, -9.5]] },
-    { from: 5, zone: 'closedNorthCourt', label: 'the closed Temple of Dendur', path: [[-3.5, 0, -32], [-3.5, 0, -47], [-9, 0, -50], [-12, 0, -55.5]] },
-    { from: 11, zone: 'closedSouthCourt', label: 'the closed Glass Court', path: [[-34, 0, 40], [-41, 0, 48], [-41, 0, 50], [-41, 0, 55.5]] },
+    { from: 3, zone: 'closedStair', label: 'the staff-only staircase', path: [[15, 0, -8], [13, 0, -7], [12, 0, -7], [9, 0, -9.5]] },
+    { from: 7, zone: 'closedGreek', label: 'the closed Greek galleries', path: [[33, 0, 24], [33, 0, 28], [33, 0, 31.5]] },
   ],
+  chokes: ['chokeEntrance', 'chokeStairFoot', 'chokeExit'],
 };
 
 export const museum: MuseumMap = {
@@ -522,7 +523,7 @@ const ARTIFACT_SLOTS: [string, string, number, number, number, NonNullable<Slot[
   ['culturesPodium', 'cultures', 4.5, 39, 0.6, 'obvious'],
   ['culturesFloor', 'cultures', 5, 18.5, 0, 'obvious'],
   ['northPharaoh', 'northCourt', 20.8, -58.5, 0, 'obvious'],
-  ['northPlatform', 'northCourt', 9.2, -60, 1.0, 'obvious'],
+  ['northPlatform', 'northCourt', 9.2, -62.3, 1.0, 'obvious'],
   ['northLion', 'northCourt', -26.3, -62.5, 0, 'obvious'],
   ['southMonument', 'southCourt', 17.3, 60.7, 1.0, 'obvious'],
   ['southFloor', 'southCourt', -30, 66, 0, 'obvious'],

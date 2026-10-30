@@ -122,3 +122,11 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 
 - [ ] **Walk 4.2 m/s.** Is smooth walking comfortable with the vignette?
 - [ ] **Run 12.6 m/s.** Click the stick to run down the Great Hall. Any nausea? Do you stop cleanly at walls and rails?
+
+## Temple pool, Crowd Control batons
+
+- [ ] **Dendur bridge.** Walk over the little bridge onto the temple platform. Do the balustrades stop you falling in? Does the pool read as one body of water?
+- [ ] **Baton in hand.** Start Crowd Control: is the baton in your right hand, pointing forward along the controller?
+- [ ] **Bonk feel.** Swing at a wrong-way tourist's head. Does the hit register on a natural swing (not too fast needed)? Is the double buzz (knock, then rebound) satisfying, or too strong?
+- [ ] **Stars.** Can you see the stars and the wobble from a couple of metres away?
+- [ ] **Lobby crowding.** With 20+ tourists in the Great Hall in later waves, is the frame rate steady? (Desktop measure: 150 draw calls on the balcony.)

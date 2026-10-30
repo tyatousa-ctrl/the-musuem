@@ -20,7 +20,7 @@ export interface ModeInfo {
 export const MODE_CATALOG: ModeInfo[] = [
   { id: 'ctr', name: 'Capture the Relic', pitch: 'Smash their case, steal their relic, carry it home.', players: '2–4 · teams', available: true },
   { id: 'artifactHunt', name: 'Artifact Hunt', pitch: 'Find hidden treasures and bring them to the desk.', players: '1–4 · FFA or teams', available: true },
-  { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op security. Turn the tourists around.', players: '1–4 · co-op', available: true },
+  { id: 'crowdControl', name: 'Crowd Control', pitch: 'Co-op lobby security. Baton the strays back on route.', players: '1–4 · co-op', available: true },
   { id: 'insuranceFraud', name: 'Insurance Fraud', pitch: 'Run up the biggest insurance bill.', players: '1–4 · FFA', available: true },
   { id: 'hideSeek', name: 'Hide and Seek', pitch: 'Hide anywhere. Every two minutes, you make a sound.', players: '2–4', available: true },
   { id: 'fixExhibit', name: 'Fix the Exhibit', pitch: 'Memorise the room, then put it back together.', players: '1–4 · solo scores', available: true },
@@ -51,6 +51,8 @@ export interface ClientMessages {
   useDoor: { id: string };
   /** Desktop "tap on the shoulder" for an NPC in reach (VR touches are detected from hand poses). */
   touchAgent: { id: string };
+  /** A baton hit on an NPC's head (Crowd Control); the client spots it, the server checks reach and the baton. */
+  batonHit: { id: string };
   /** Press a floor button inside an elevator cab (player must be standing in it). */
   elevator: { id: string; floor: number };
   /** Press the call button beside an elevator's door on your floor. */
@@ -84,7 +86,7 @@ export interface ServerEvents {
   /** Fix the Exhibit: one of your pieces clicked into place (sent only to its owner). */
   snap: { id: string; pos: [number, number, number] };
   /** Crowd Control moments, for sounds and pop-ups. */
-  crowd: { type: 'touched' | 'routed' | 'wrongExit' | 'breach' | 'filming'; effect?: string; pos: [number, number, number] };
+  crowd: { type: 'touched' | 'bonked' | 'routed' | 'wrongExit' | 'breach' | 'filming'; effect?: string; pos: [number, number, number] };
   grabRejected: { objectId: string; hand: Hand };
   pong: { t: number; server: number };
 }

@@ -33,6 +33,7 @@ export class Crowd {
   private marker: THREE.InstancedMesh;
   private flag: THREE.InstancedMesh;
   private held: THREE.InstancedMesh;
+  private stars: THREE.InstancedMesh;
   private shown = new Map<string, Shown>();
   private free: number[] = [];
   private t = 0;
@@ -42,7 +43,7 @@ export class Crowd {
   private s = new THREE.Vector3();
   private c = new THREE.Color();
   private zero = new THREE.Matrix4().makeScale(0, 0, 0);
-  private layers = { flag: false, held: false, marker: false };
+  private layers = { flag: false, held: false, marker: false, stars: false };
 
   constructor() {
     this.group.name = 'tourists';
@@ -73,6 +74,9 @@ export class Crowd {
     this.marker = inst(marker, new THREE.MeshBasicMaterial({ color: 0xffffff }));
     this.flag = inst(flag, mat());
     this.held = inst(held, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    // Bonked with a baton: three little stars circling the head.
+    const star = (a: number) => new THREE.OctahedronGeometry(0.05, 0).scale(1, 1, 0.45).translate(Math.cos(a) * 0.2, 1.82, Math.sin(a) * 0.2);
+    this.stars = inst(mergeGeometries([0, 2.1, 4.2].map(star))!, new THREE.MeshBasicMaterial({ color: 0xffd84a }));
     for (let i = MAX - 1; i >= 0; i--) this.free.push(i);
   }
 
@@ -80,7 +84,7 @@ export class Crowd {
     this.t += dt;
     const k = 1 - Math.exp(-dt * 10);
     for (const v of this.shown.values()) v.seen = false;
-    this.layers = { flag: false, held: false, marker: false };
+    this.layers = { flag: false, held: false, marker: false, stars: false };
     state?.agents?.forEach((a: NetState, id: string) => {
       let v = this.shown.get(id);
       if (!v) {
@@ -101,16 +105,24 @@ export class Crowd {
       const mood = MOODS[a.mood] ?? 'ok';
       const kind = AGENT_KINDS[a.kind] ?? 'normal';
       v.hop = mood === 'huffy' ? Math.min(1, v.hop + dt * 6) : Math.max(0, v.hop - dt * 3);
+      const dazed = mood === 'dazed';
       const bob = Math.abs(Math.sin(v.phase)) * 0.05 + v.hop * Math.abs(Math.sin(this.t * 13)) * 0.12;
-      const sway = Math.sin(v.phase) * 0.06 + v.hop * Math.sin(this.t * 17) * 0.25;
+      const sway = Math.sin(v.phase) * 0.06 + v.hop * Math.sin(this.t * 17) * 0.25 + (dazed ? Math.sin(this.t * 6 + v.slot) * 0.35 : 0);
       const scale = kind === 'kid' ? 0.7 : 1;
       this.p.set(v.x, a.y + bob, v.z);
-      this.q.setFromEuler(new THREE.Euler(0, v.yaw + sway, 0));
+      this.q.setFromEuler(new THREE.Euler(dazed ? Math.sin(this.t * 5 + v.slot) * 0.08 : 0, v.yaw + sway, 0));
       this.s.setScalar(scale);
       this.m.compose(this.p, this.q, this.s);
       const i = v.slot;
       this.legs.setMatrixAt(i, this.m); this.torso.setMatrixAt(i, this.m); this.head.setMatrixAt(i, this.m); this.hair.setMatrixAt(i, this.m);
       this.flag.setMatrixAt(i, kind === 'guide' || kind === 'leader' ? this.m : this.zero);
+      if (dazed) {
+        this.layers.stars = true;
+        this.q.setFromEuler(new THREE.Euler(0, this.t * 7, 0));
+        this.stars.setMatrixAt(i, this.m.compose(this.p, this.q, this.s));
+        this.q.setFromEuler(new THREE.Euler(0, v.yaw + sway, 0));
+        this.m.compose(this.p, this.q, this.s);
+      } else this.stars.setMatrixAt(i, this.zero);
       if (kind === 'guide' || kind === 'leader') this.layers.flag = true;
       if (kind === 'influencer' || kind === 'lost') this.layers.held = true;
       if (MOOD_COLOR[mood] !== undefined) this.layers.marker = true;
@@ -131,7 +143,7 @@ export class Crowd {
     });
     for (const [id, v] of this.shown) {
       if (v.seen) continue;
-      for (const im of [this.legs, this.torso, this.head, this.hair, this.marker, this.flag, this.held]) im.setMatrixAt(v.slot, this.zero);
+      for (const im of [this.legs, this.torso, this.head, this.hair, this.marker, this.flag, this.held, this.stars]) im.setMatrixAt(v.slot, this.zero);
       this.free.push(v.slot);
       this.shown.delete(id);
     }
@@ -139,8 +151,8 @@ export class Crowd {
     // flag, phone/map and mood-marker layers entirely when nobody needs them.
     let used = 0;
     for (const v of this.shown.values()) used = Math.max(used, v.slot + 1);
-    for (const im of [this.legs, this.torso, this.head, this.hair, this.marker, this.flag, this.held]) {
-      im.count = (im === this.flag && !this.layers.flag) || (im === this.held && !this.layers.held) || (im === this.marker && !this.layers.marker) ? 0 : used;
+    for (const im of [this.legs, this.torso, this.head, this.hair, this.marker, this.flag, this.held, this.stars]) {
+      im.count = (im === this.flag && !this.layers.flag) || (im === this.held && !this.layers.held) || (im === this.marker && !this.layers.marker) || (im === this.stars && !this.layers.stars) ? 0 : used;
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
@@ -282,6 +294,8 @@ const LINES: Record<string, string[]> = {
   wrongExit: ['Bye, I guess.', 'Worst museum ever.'],
   filming: ['Wait, content!', 'Like and subscribe!'],
   breach: ['Ooh, what\'s in here?', 'Staff only? Pfft.'],
+  bonkTurned: ['Ow! Okay, this way!', 'Seeing stars… going!', 'Alright, ALRIGHT!'],
+  bonkDazed: ['Ow! I was going the right way!', 'Whuh…?', 'I\'m complaining to the manager.'],
 };
 
 class Bubbles {
@@ -335,6 +349,9 @@ export const crowdControl: ClientMode = {
       if (m.type === 'touched') {
         bubbles?.say(m.effect ?? 'turned', m.pos);
         if (near) ctx.audio.play('huff', m.pos, { rate: m.effect === 'turned' ? 1.15 : 0.9 });
+      } else if (m.type === 'bonked') {
+        bubbles?.say(m.effect === 'turned' ? 'bonkTurned' : 'bonkDazed', m.pos);
+        if (near) ctx.audio.play('bonk', m.pos, { gain: 1.1 });
       } else if (m.type === 'filming') { bubbles?.say('filming', m.pos); if (near) ctx.audio.play('shutter', m.pos); }
       else if (m.type === 'wrongExit') { bubbles?.say('wrongExit', m.pos); if (near) ctx.audio.play('bad', m.pos, { gain: 0.5 }); }
       else if (m.type === 'breach') bubbles?.say('breach', m.pos);

@@ -130,7 +130,7 @@ export const tunables = {
     walkSpeed: 1.3,
     kidSpeed: 2.1,
     /** Chance a tourist turns the wrong way at each circuit point, by wave. */
-    wrongTurnChance: [0.015, 0.02, 0.025, 0.03, 0.035],
+    wrongTurnChance: [0.04, 0.05, 0.06, 0.07, 0.08],
     /** Chance a tourist walks in the wrong way from the start, by wave. */
     wrongAtStartChance: [0.15, 0.2, 0.25, 0.3, 0.35],
     /** Chance a lost tourist takes a detour toward a closed area when it passes one. */
@@ -144,6 +144,13 @@ export const tunables = {
     /** Player-body-to-tourist distance that counts as a bump, m. */
     bumpRadius: 0.55,
     touchCooldownSec: 0.8,
+    /** Baton: a hit on the head dazes a tourist this long (seeing stars, standing still), s. */
+    batonDazeSec: 1.6,
+    /** Swing speed the baton must reach to count as a hit in VR, m/s. */
+    batonSwingSpeed: 1.6,
+    /** Most a player's head can be from a tourist they hit (the server's reach check), m. */
+    batonReach: 2.2,
+    batonCooldownSec: 0.35,
     /** A sign turns wrong-way and lost tourists around within this radius, m. */
     signRadius: 1.8,
     /** Longest rope between two stanchions, m. */

@@ -201,6 +201,9 @@ export class PartyRoom extends Room<{ state: PartyState }> {
     this.on('touchAgent', (p, m) => {
       if (this.state.phase === 'playing') this.mode?.onRequest?.(this.ctx, p, 'touchAgent', { id: String(m.id) });
     });
+    this.on('batonHit', (p, m) => {
+      if (this.state.phase === 'playing') this.mode?.onRequest?.(this.ctx, p, 'batonHit', { id: String(m.id) });
+    });
     this.on('useDoor', (p, m) => {
       const door = this.state.doors.get(String(m.id));
       const def = museum.doors.find((d) => d.id === door?.id);
