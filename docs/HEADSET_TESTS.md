@@ -130,3 +130,8 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **Bonk feel.** Swing at a wrong-way tourist's head. Does the hit register on a natural swing (not too fast needed)? Is the double buzz (knock, then rebound) satisfying, or too strong?
 - [ ] **Stars.** Can you see the stars and the wobble from a couple of metres away?
 - [ ] **Lobby crowding.** With 20+ tourists in the Great Hall in later waves, is the frame rate steady? (Desktop measure: 150 draw calls on the balcony.)
+
+## Insurance Fraud at sunset
+
+- [ ] **After hours.** Start Insurance Fraud: does the museum feel closed and sunset-lit, yet still bright enough to see the price tags, the guards and their vision cones?
+- [ ] **Back to day.** After the round, is the lobby back to full daylight?

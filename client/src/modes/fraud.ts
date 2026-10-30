@@ -168,6 +168,8 @@ let t = 0;
 export const insuranceFraud: ClientMode = {
   id: 'insuranceFraud',
   enter(ctx) {
+    // After hours: the museum has closed for the day and the sun is going down.
+    ctx.setAtmosphere('sunset');
     cones = new Cones();
     ctx.scene.add(cones.group);
     guards = new Crowd(); beacons = new Beacons(); popups = new Popups(); toolLabels = new ToolLabels();

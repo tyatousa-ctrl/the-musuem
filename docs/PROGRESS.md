@@ -227,6 +227,13 @@ Found and fixed during the pass:
 | Desktop: with the baton in your right hand, E carries stanchions and signs in your left; clicking empty air swings instead of throwing the baton away | browser |
 | Perf: Crowd Control's worst view is now the Great Hall balcony at 150 draw calls (the budget) because the whole crowd is in one room | browser (`mode-perf.ts`) |
 
+### Insurance Fraud after hours (requested)
+
+| Item | Status |
+|---|---|
+| Insurance Fraud plays at sunset after closing: the whole museum a little dimmer and warmer, a sunset sky through the glass courts and windows, low golden skylight shafts, and warm low sun on people and objects. Every other mode is in daylight, and the museum goes back to daylight when the round ends | screenshot (`_day-*` vs `_sunset-*`), browser (`fraud-desktop.ts`) |
+| No frame-rate cost: one colour on the shared world materials, no extra lights or draw calls | browser (draw calls unchanged) |
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.

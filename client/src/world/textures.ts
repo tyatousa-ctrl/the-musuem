@@ -252,6 +252,35 @@ export function shaftTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/** Sunset sky: deep blue overhead, rose and orange at the horizon, a low glowing sun. */
+export function sunsetSkyTexture(): THREE.CanvasTexture {
+  const t = canvasTexture(256, (g, s, rand) => {
+    const grad = g.createLinearGradient(0, 0, 0, s);
+    grad.addColorStop(0, '#2c3566');
+    grad.addColorStop(0.25, '#6a4f86');
+    grad.addColorStop(0.4, '#d9786a');
+    grad.addColorStop(0.48, '#f6b36a');
+    grad.addColorStop(0.52, '#7a5a52');
+    grad.addColorStop(1, '#4a3e3a');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, s, s);
+    // The sun, low on the horizon, and a few lit cloud streaks.
+    const sun = g.createRadialGradient(s * 0.3, s * 0.47, 0, s * 0.3, s * 0.47, s * 0.12);
+    sun.addColorStop(0, 'rgba(255,240,200,1)');
+    sun.addColorStop(0.25, 'rgba(255,190,110,0.8)');
+    sun.addColorStop(1, 'rgba(255,140,80,0)');
+    g.fillStyle = sun;
+    g.fillRect(0, s * 0.3, s, s * 0.22);
+    for (let i = 0; i < 10; i++) {
+      const y = s * (0.3 + rand() * 0.14), w = 30 + rand() * 60;
+      g.fillStyle = `rgba(255,${150 + Math.floor(rand() * 60)},120,0.35)`;
+      g.fillRect(rand() * s, y, w, 2 + rand() * 3);
+    }
+  });
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
 /** Sky gradient for the sky dome. */
 export function skyTexture(): THREE.CanvasTexture {
   const t = canvasTexture(256, (g, s, rand) => {

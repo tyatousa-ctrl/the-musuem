@@ -37,6 +37,12 @@ const SPECS: Record<string, MatSpec> = {
 };
 
 const matCache = new Map<string, THREE.Material>();
+/** A colour every world material is multiplied by: white by day, dim and warm at sunset. Costs nothing per frame. */
+const worldTint = new THREE.Color(1, 1, 1);
+export function setWorldTint(c: THREE.Color) {
+  worldTint.copy(c);
+  for (const m of matCache.values()) (m as THREE.MeshBasicMaterial).color.copy(c);
+}
 let canvasAtlases: THREE.Texture[] = [];
 let labelTexture: THREE.Texture | null = null;
 
@@ -63,6 +69,7 @@ export function material(key: MatKey): THREE.Material {
   else if (key === 'labels') map = labelTexture;
   m = new THREE.MeshBasicMaterial({
     map,
+    color: worldTint,
     vertexColors: true,
     transparent: !!spec.transparent,
     opacity: spec.opacity ?? 1,

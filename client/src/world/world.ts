@@ -5,8 +5,8 @@ import { adjacency, roomAt, type MuseumMap, type RoomId } from '@museum/shared';
 import { buildRoom, type BuildCtx } from './build/rooms';
 import { buildExterior, type ExteriorDynamic } from './build/exterior';
 import { labelAtlas, loadArtCatalogue, type Painting } from './paintings';
-import { setArtTextures, type FixtureRange } from './sink';
-import { shaftTexture, skyTexture } from './textures';
+import { setArtTextures, setWorldTint, type FixtureRange } from './sink';
+import { shaftTexture, skyTexture, sunsetSkyTexture } from './textures';
 import { assets } from '../core/assets';
 import { pendingModels } from './build/exhibits';
 
@@ -23,7 +23,13 @@ export interface World {
   collapse(tag: string): boolean;
   /** Put it back (a new round). */
   restore(tag: string): void;
+  /** Daylight, or the museum after closing at sunset (dimmer and warmer, a sunset sky). */
+  setAtmosphere(a: Atmosphere): void;
 }
+
+export type Atmosphere = 'day' | 'sunset';
+/** What the baked world is multiplied by at sunset: a little dimmer, and warm. */
+const SUNSET_TINT = new THREE.Color(0.8, 0.66, 0.54);
 
 /** Room-room visibility: neighbours, plus rooms seen through chains of big openings. */
 function visibilitySets(map: MuseumMap): Map<RoomId, Set<RoomId>> {
@@ -169,6 +175,8 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
 
   // Sky dome follows the camera.
   const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 12), new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, depthWrite: false, fog: false }));
+  const daySky = (sky.material as THREE.MeshBasicMaterial).map;
+  let sunsetSky: THREE.Texture | null = null;
   sky.renderOrder = -10;
   sky.name = 'sky';
   scene.add(sky);
@@ -201,6 +209,17 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
     scene, rooms, collider, colliderMesh, sky,
     collapse(tag) { if (collapsed.has(tag)) return true; const ok = apply(tag, false); if (ok) collapsed.add(tag); return ok; },
     restore(tag) { if (!collapsed.has(tag)) return; apply(tag, true); collapsed.delete(tag); },
+    setAtmosphere(a) {
+      const sunset = a === 'sunset';
+      setWorldTint(sunset ? SUNSET_TINT : new THREE.Color(1, 1, 1));
+      const skyMat = sky.material as THREE.MeshBasicMaterial;
+      if (sunset && !sunsetSky) sunsetSky = sunsetSkyTexture();
+      skyMat.map = sunset ? sunsetSky : daySky;
+      skyMat.needsUpdate = true;
+      // Skylight shafts: low golden light instead of bright noon.
+      shaftMat.color.setHex(sunset ? 0xff9a50 : 0xffffff);
+      shaftMat.opacity = sunset ? 0.2 : 0.32;
+    },
     cull(pos) {
       const room = roomAt(map, pos.x, pos.y - 1.2, pos.z)?.id ?? lastRoom ?? 'exterior';
       lastRoom = room;

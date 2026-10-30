@@ -22,6 +22,8 @@ export interface ClientModeCtx {
   setNameFilter: (hide: ((id: string) => boolean) | null) => void;
   /** Rooms you have set foot in this session. */
   visited: Set<string>;
+  /** Light the museum by day or at sunset after closing (reset to day when a mode exits). */
+  setAtmosphere: (a: 'day' | 'sunset') => void;
 }
 
 export interface ClientMode {

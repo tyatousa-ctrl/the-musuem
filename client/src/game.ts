@@ -78,15 +78,28 @@ export class Game {
   private countdownShown = false;
   private wristPokeCooldown = 0;
 
+  // Dynamic objects are lit by these; the static world is baked and unlit.
+  private hemi = new THREE.HemisphereLight(0xfff6e8, 0x6b5f50, 2.2);
+  private sun = (() => { const l = new THREE.DirectionalLight(0xfff2dd, 1.2); l.position.set(30, 60, 20); return l; })();
+
+  /** Day, or the museum after closing at sunset: the baked world, the sky and the lights together. */
+  private setAtmosphere(a: 'day' | 'sunset') {
+    const sunset = a === 'sunset';
+    this.world.setAtmosphere(a);
+    this.hemi.color.setHex(sunset ? 0xffc79a : 0xfff6e8);
+    this.hemi.groundColor.setHex(sunset ? 0x4a3a40 : 0x6b5f50);
+    this.hemi.intensity = sunset ? 1.7 : 2.2;
+    this.sun.color.setHex(sunset ? 0xff9a5c : 0xfff2dd);
+    this.sun.intensity = sunset ? 0.9 : 1.2;
+    this.sun.position.set(sunset ? -60 : 30, sunset ? 12 : 60, 20); // low in the west, over the park
+  }
+
   constructor(readonly slug: string | null) {
     this.renderer = createRenderer(this.tier, document.getElementById('app')!);
     this.camera.rotation.order = 'YXZ';
     addEventListener('resize', () => { this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix(); });
     // Dynamic objects are lit; the static world is baked and unlit.
-    this.scene.add(new THREE.HemisphereLight(0xfff6e8, 0x6b5f50, 2.2));
-    const sun = new THREE.DirectionalLight(0xfff2dd, 1.2);
-    sun.position.set(30, 60, 20);
-    this.scene.add(sun);
+    this.scene.add(this.hemi, this.sun);
     this.scene.add(this.avatars.group, this.objects.group, this.breakables.group);
     this.desktop = new DesktopInput(this.renderer.domElement);
     this.announcer = new Announcer(this.camera, () => this.renderer.xr.isPresenting);
@@ -137,6 +150,7 @@ export class Game {
       setAvatarsHidden: (h) => { this.avatars.hideAll = h; },
       setNameFilter: (f) => { this.avatars.hideName = f; },
       visited: this.visited,
+      setAtmosphere: (a) => this.setAtmosphere(a),
     };
 
     // VR entry button; audio starts on the same gesture (brief §10).
@@ -664,11 +678,13 @@ export class Game {
       if (phase === 'countdown' || phase === 'playing') {
         if (!this.mode || this.mode.id !== s.mode) {
           this.mode?.exit(this.modeCtx);
+          this.setAtmosphere('day'); // a mode that wants sunset sets it again in enter()
           this.mode = CLIENT_MODES[s.mode as ModeId] ?? null;
           this.mode?.enter(this.modeCtx);
         }
       } else if (this.mode && phase === 'lobby') {
         this.mode.exit(this.modeCtx);
+        this.setAtmosphere('day');
         this.mode = null;
         this.audio.stopAlarms();
       }
