@@ -96,6 +96,8 @@ export class Game {
   async start() {
     this.overlay.status('Building the museum…');
     this.world = await buildWorld(museum, (s) => this.overlay.status(s));
+    // Breaking a painting or an exhibit removes it from the museum's own geometry (and puts it back next round).
+    this.breakables.onFixture = (id, broken) => { if (broken) this.world.collapse(id); else this.world.restore(id); };
     this.scene.add(this.world.scene);
     this.doors = new Doors(museum);
     this.scene.add(this.doors.group);

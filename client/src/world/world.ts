@@ -5,7 +5,7 @@ import { adjacency, roomAt, type MuseumMap, type RoomId } from '@museum/shared';
 import { buildRoom, type BuildCtx } from './build/rooms';
 import { buildExterior, type ExteriorDynamic } from './build/exterior';
 import { labelAtlas, loadArtCatalogue, type Painting } from './paintings';
-import { setArtTextures } from './sink';
+import { setArtTextures, type FixtureRange } from './sink';
 import { shaftTexture, skyTexture } from './textures';
 import { assets } from '../core/assets';
 import { pendingModels } from './build/exhibits';
@@ -19,6 +19,10 @@ export interface World {
   cull(pos: THREE.Vector3): RoomId[];
   update(dt: number, t: number, camera: THREE.Camera): void;
   sky: THREE.Mesh;
+  /** Remove a breakable fixture (exhibit or painting) from the drawn and the collision geometry. */
+  collapse(tag: string): boolean;
+  /** Put it back (a new round). */
+  restore(tag: string): void;
 }
 
 /** Room-room visibility: neighbours, plus rooms seen through chains of big openings. */
@@ -122,6 +126,42 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
   onProgress?.('Laying the floors…');
   const merged = mergeGeometries(colliders.map((g) => { const n = new THREE.BufferGeometry(); n.setAttribute('position', g.attributes.position); return n; }), false)!;
   const collider = new MeshBVH(merged);
+  // Fixture vertex runs: drawn (per room mesh) and collision (in the merged collider).
+  const fixtures = new Map<string, FixtureRange[]>();
+  for (const g of rooms.values()) {
+    const tags = g.userData.tags as Map<string, FixtureRange[]> | undefined;
+    if (tags) for (const [tag, ranges] of tags) { if (!fixtures.has(tag)) fixtures.set(tag, []); fixtures.get(tag)!.push(...ranges); }
+  }
+  {
+    let start = 0;
+    for (const g of colliders) {
+      const count = g.attributes.position.count;
+      const tag = g.userData.tag as string | undefined;
+      if (tag) { if (!fixtures.has(tag)) fixtures.set(tag, []); fixtures.get(tag)!.push({ geometry: merged, start, count }); }
+      start += count;
+    }
+  }
+  const collapsed = new Set<string>();
+  /** Squash a run of vertices onto one point (its triangles vanish), keeping the original to restore. */
+  const squash = (r: FixtureRange, restore: boolean) => {
+    const pos = r.geometry.attributes.position as THREE.BufferAttribute;
+    const arr = pos.array as Float32Array;
+    if (restore) { if (r.original) arr.set(r.original, r.start * 3); }
+    else {
+      r.original ??= arr.slice(r.start * 3, (r.start + r.count) * 3);
+      const [x, y, z] = [arr[r.start * 3], arr[r.start * 3 + 1], arr[r.start * 3 + 2]]; // all onto one point: zero-area triangles
+      for (let i = r.start; i < r.start + r.count; i++) { arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z; }
+    }
+    pos.needsUpdate = true;
+  };
+  const apply = (tag: string, restore: boolean) => {
+    const ranges = fixtures.get(tag);
+    if (!ranges) return false;
+    for (const r of ranges) squash(r, restore);
+    // The collision mesh changed: refit its bounds tree (a one-off cost when something breaks).
+    if (ranges.some((r) => r.geometry === merged)) collider.refit();
+    return true;
+  };
   const colliderMesh = new THREE.Mesh(merged, new THREE.MeshBasicMaterial({ wireframe: true, color: 0x00ff88, transparent: true, opacity: 0.25 }));
   colliderMesh.visible = false;
   colliderMesh.name = 'collider';
@@ -159,6 +199,8 @@ export async function buildWorld(map: MuseumMap, onProgress?: (label: string) =>
 
   return {
     scene, rooms, collider, colliderMesh, sky,
+    collapse(tag) { if (collapsed.has(tag)) return true; const ok = apply(tag, false); if (ok) collapsed.add(tag); return ok; },
+    restore(tag) { if (!collapsed.has(tag)) return; apply(tag, true); collapsed.delete(tag); },
     cull(pos) {
       const room = roomAt(map, pos.x, pos.y - 1.2, pos.z)?.id ?? lastRoom ?? 'exterior';
       lastRoom = room;

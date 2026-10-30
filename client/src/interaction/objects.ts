@@ -5,7 +5,7 @@ import type { NetState } from '../multiplayer/net';
 import type { Avatars } from '../multiplayer/avatars';
 import type { TrackedHand } from '../player/hands';
 import type { DynamicBox } from '../player/collision';
-import { DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, money } from '@museum/shared';
+import { DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, FIXTURE_NAME, exhibitFixtures, museum, money, roomAt, wallPaintingSpots } from '@museum/shared';
 import { SIZE, destructibleMesh, priceTag, rubbleMesh } from './destructibles';
 import type { DynamicCull } from '../world/dyncull';
 
@@ -285,7 +285,12 @@ export class WorldObjects {
 interface Dest {
   root: THREE.Group; mesh: THREE.Mesh; rubble: THREE.Mesh; tag: THREE.Sprite; tagKey: string;
   stage: number; variant: string; center: THREE.Vector3; radius: number; height: number; box?: DynamicBox; wobble: number;
+  /** A built-in fixture (wall painting or exhibit): drawn by the world, collapsed out of it when destroyed. */
+  fixture?: { tagPos: THREE.Vector3; small: boolean; room: string };
 }
+
+const isFixture = (variant: string) => variant === 'wallPainting' || variant.startsWith('ex');
+const fixtureName = (variant: string) => DESTRUCTIBLE_NAME[variant] ?? FIXTURE_NAME[variant] ?? '';
 
 /**
  * Everything breakable (brief §20): CTR's display cases crack and shatter;
@@ -301,6 +306,8 @@ export class Breakables {
   private shards: { m: THREE.Mesh; v: THREE.Vector3; life: number; floor: number }[] = [];
   private glassMat = new THREE.MeshBasicMaterial({ color: 0xd8f0f8, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
   private crackTex: THREE.CanvasTexture;
+  /** The world removes (or restores) a fixture's geometry: set by the game. */
+  onFixture: (id: string, broken: boolean) => void = () => {};
 
   constructor() {
     this.group.name = 'breakables';
@@ -354,6 +361,7 @@ export class Breakables {
     });
     for (const [id, c] of this.cases) if (!seen.has(id)) { c.root.removeFromParent(); this.cases.delete(id); }
     for (const [id, d] of this.dests) if (!seen.has(id)) {
+      if (d.fixture && d.stage >= 2) this.onFixture(id, false); // a new round: put it back
       d.root.removeFromParent(); d.tag.removeFromParent();
       if (d.box) this.boxes.splice(this.boxes.indexOf(d.box), 1);
       this.dests.delete(id);
@@ -376,6 +384,7 @@ export class Breakables {
 
   private updateDest(id: string, b: NetState, dt: number) {
     let d = this.dests.get(id);
+    if (!d && isFixture(b.variant)) d = this.newFixture(id, b);
     if (!d) {
       const center = DESTRUCTIBLE_CENTER[b.variant] ?? 1;
       const root = new THREE.Group();
@@ -401,6 +410,7 @@ export class Breakables {
       }
       this.dests.set(id, d);
     }
+    if (d.fixture) { this.updateFixture(id, d, b); return; }
     // Damage: a jolt and a lasting lean; destroyed: rubble and flying pieces.
     if (b.stage !== d.stage || (b.stage === 1 && d.wobble <= 0 && b.hp !== d.mesh.userData.hp)) {
       if (b.stage === 2 && d.stage < 2) this.burst(d.center, Math.min(60, 12 + d.height * 8), d.root.position.y);
@@ -426,16 +436,64 @@ export class Breakables {
     }
   }
 
+  /** A painting on a wall or an exhibit: no mesh of its own, just a tag and rubble for when it goes. */
+  private newFixture(id: string, b: NetState): Dest {
+    const wp = b.variant === 'wallPainting' ? wallPaintingSpots(museum).find((s) => s.id === id) : undefined;
+    const ex = wp ? undefined : exhibitFixtures(museum).find((f) => f.id === id);
+    const floorY = wp ? wp.y - wp.h / 2 - 0.3 : ex?.floorY ?? b.y - 1;
+    const height = wp ? wp.h + 0.3 : ex?.height ?? 2;
+    const root = new THREE.Group();
+    root.position.set(b.x, floorY, b.z);
+    // Painting scraps land on the floor under it; exhibits leave a heap where they stood.
+    const rubble = wp ? rubbleMesh('vase') : rubbleMesh(ex && Math.max(ex.hx, ex.hz) > 1 ? 'statue' : 'bust');
+    if (wp) rubble.position.y = -(wp.y - wp.h / 2 - 0.3 - (museum.rooms.find((r) => r.id === wp.room)?.floorY ?? 0));
+    if (ex) rubble.scale.set(Math.max(1, ex.hx / 0.4), 1, Math.max(1, ex.hz / 0.4));
+    rubble.visible = false;
+    root.add(rubble);
+    this.group.add(root);
+    const tag = priceTag('', '');
+    tag.visible = false;
+    this.group.add(tag);
+    // Paintings: a small tag on the wall beside the frame. Exhibits: over the top.
+    const tagPos = wp
+      // Just above the museum's own wall label, beside the frame at eye level.
+      ? new THREE.Vector3(wp.x + Math.sin(wp.yaw) * 0.04 + Math.cos(wp.yaw) * (wp.w / 2 + 0.45), (museum.rooms.find((r) => r.id === wp.room)?.floorY ?? 0) + 1.72, wp.z + Math.cos(wp.yaw) * 0.04 - Math.sin(wp.yaw) * (wp.w / 2 + 0.45))
+      : new THREE.Vector3(b.x, floorY + height + 0.3, b.z);
+    const d: Dest = { root, mesh: new THREE.Mesh(), rubble, tag, tagKey: '', stage: 0, variant: b.variant, center: new THREE.Vector3(b.x, b.y, b.z), radius: b.radius, height, wobble: 0, fixture: { tagPos, small: !!wp, room: wp?.room ?? ex?.room ?? '' } };
+    this.dests.set(id, d);
+    return d;
+  }
+
+  private updateFixture(id: string, d: Dest, b: NetState) {
+    if (b.stage !== d.stage) {
+      if (b.stage === 2 && d.stage < 2) { this.burst(d.center, Math.min(60, 10 + d.height * 6), d.root.position.y); this.onFixture(id, true); }
+      d.stage = b.stage;
+    }
+    d.rubble.visible = b.stage >= 2;
+    const key = `${b.value}|${b.stage}`;
+    if (key !== d.tagKey) {
+      d.tagKey = key;
+      d.tag.material = priceTag(money(b.value), fixtureName(b.variant)).material;
+      d.tag.position.copy(d.fixture!.tagPos);
+      if (d.fixture!.small) d.tag.scale.set(0.34, 0.15, 1); else if (d.height > 3) d.tag.scale.set(1.0, 0.44, 1); else d.tag.scale.set(0.5, 0.22, 1);
+    }
+  }
+
   /** Price tags on the nearest few standing destructibles only (each tag is a draw call). */
   private updateTags(viewer: THREE.Vector3) {
     const near: { d: Dest; dist: number }[] = [];
+    const walls: { d: Dest; dist: number }[] = [];
+    const here = roomAt(museum, viewer.x, viewer.y - 0.6, viewer.z)?.id;
     for (const d of this.dests.values()) {
       d.tag.visible = false;
       if (d.stage >= 2 || !d.root.visible) continue;
       const dist = d.center.distanceTo(viewer);
+      // Painting tags are little wall labels: every painting in the room you're in (nearest dozen).
+      if (d.fixture?.small) { if (d.fixture.room === here && dist < 16) walls.push({ d, dist }); continue; }
       if (dist < (d.height > 3 ? 14 : 8)) near.push({ d, dist });
     }
-    near.sort((a, b) => a.dist - b.dist).slice(0, 4).forEach(({ d }) => (d.tag.visible = true));
+    walls.sort((a, b) => a.dist - b.dist).slice(0, 12).forEach(({ d }) => (d.tag.visible = true));
+    near.sort((a, b) => a.dist - b.dist).slice(0, 6).forEach(({ d }) => (d.tag.visible = true));
   }
 
   private burst(at: THREE.Vector3, count = 30, floor = 0) {

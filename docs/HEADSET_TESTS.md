@@ -110,3 +110,11 @@ I can't put on a Quest, so this is your checklist. Run it after each milestone, 
 - [ ] **How-to cards.** In VR the card arrives as a few announcements: are they readable before the round gets going?
 - [ ] **Free Roam.** Walk every gallery; does the room counter reach 34? The host can end it from the menu.
 
+## Elevators, climbing, guards (feedback round)
+
+- [ ] **Elevator buttons.** Push a floor button with a fingertip; push the call button outside on the other floor. Do two players inside ride together?
+- [ ] **Climbing.** Grip a wall or a banister with an empty hand and pull down: do you rise? Reach the top of a gallery partition and pull up onto it. Comfortable?
+- [ ] **Jumping.** Press A: is a 0.65 m hop enough to get onto benches and the desk?
+- [ ] **Guards.** Are the vision cones on the floor readable from standing height? Can you sneak behind a guard and smash something without being chased?
+- [ ] **Breaking the museum.** Slash a painting upstairs (the price tag is by the frame) and knock over a knight with the sledgehammer.
+

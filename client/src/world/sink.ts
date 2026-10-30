@@ -105,6 +105,12 @@ const tmpL = new THREE.Color();
 export class Sink {
   private parts = new Map<MatKey, THREE.BufferGeometry[]>();
   readonly colliders: THREE.BufferGeometry[] = [];
+  /**
+   * While set, everything added belongs to this fixture (a breakable exhibit or
+   * painting): its vertices can later be collapsed out of the merged mesh and
+   * the collision mesh when it's destroyed.
+   */
+  tag: string | null = null;
 
   /** Add a geometry (already in local space) transformed by `matrix` into world space. */
   add(mat: MatKey, geom: THREE.BufferGeometry, matrix?: THREE.Matrix4, opts: AddOpts = {}) {
@@ -119,9 +125,10 @@ export class Sink {
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { col[i * 3] = tint.r; col[i * 3 + 1] = tint.g; col[i * 3 + 2] = tint.b; }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    if (this.tag) g.userData.tag = this.tag;
     if (!this.parts.has(mat)) this.parts.set(mat, []);
     this.parts.get(mat)!.push(g);
-    if (opts.collide) this.colliders.push(stripForCollision(g));
+    if (opts.collide) this.colliders.push(this.tagged(stripForCollision(g)));
     return g;
   }
 
@@ -137,13 +144,15 @@ export class Sink {
   collideBox(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
     const geo = new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0);
     geo.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-    this.colliders.push(stripForCollision(geo));
+    this.colliders.push(this.tagged(stripForCollision(geo)));
   }
+
+  private tagged(g: THREE.BufferGeometry) { if (this.tag) g.userData.tag = this.tag; return g; }
 
   collideGeometry(geo: THREE.BufferGeometry, matrix?: THREE.Matrix4) {
     const g = geo.clone();
     if (matrix) g.applyMatrix4(matrix);
-    this.colliders.push(stripForCollision(g));
+    this.colliders.push(this.tagged(stripForCollision(g)));
   }
 
   /** Bake, merge and return one mesh per material. */
@@ -157,6 +166,18 @@ export class Sink {
       if (!merged) continue;
       merged.computeBoundingSphere();
       const mesh = new THREE.Mesh(merged, material(mat));
+      // Where each fixture's vertices ended up in the merged mesh.
+      let start = 0;
+      for (const g of list) {
+        const count = g.attributes.position.count;
+        const tag = g.userData.tag as string | undefined;
+        if (tag) {
+          const ranges = (group.userData.tags ??= new Map<string, FixtureRange[]>()) as Map<string, FixtureRange[]>;
+          if (!ranges.has(tag)) ranges.set(tag, []);
+          ranges.get(tag)!.push({ geometry: merged, start, count });
+        }
+        start += count;
+      }
       mesh.name = `${name}:${mat}`;
       mesh.matrixAutoUpdate = false;
       if (spec.transparent) mesh.renderOrder = 2;
@@ -165,6 +186,9 @@ export class Sink {
     return group;
   }
 }
+
+/** A run of vertices belonging to one fixture inside a merged geometry. */
+export interface FixtureRange { geometry: THREE.BufferGeometry; start: number; count: number; original?: Float32Array }
 
 function stripForCollision(g: THREE.BufferGeometry): THREE.BufferGeometry {
   const out = new THREE.BufferGeometry();

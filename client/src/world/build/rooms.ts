@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Elevator, MuseumMap, Room } from '@museum/shared';
+import { exhibitFixtures, wallPaintingSpots, type Elevator, type MuseumMap, type Room } from '@museum/shared';
 import { type LightPool, type RoomLight, Sink } from '../sink';
 import { buildFlatCeiling, buildFloor, buildPlatforms, buildRails, buildStairs, buildWalls, WALL_T, type WallSide } from './structure';
 import { buildBlock } from './exhibits';
@@ -42,37 +42,24 @@ function lightFor(r: Room): RoomLight {
   }
 }
 
-/** Hang paintings along a wall, avoiding openings. */
-function hangPaintings(sink: Sink, ctx: BuildCtx, side: WallSide, openings: { u0: number; u1: number }[], group: string, opts: { maxW: number; maxH: number; centreY: number; gap: number }) {
-  const free: [number, number][] = [];
-  let s = 1.2;
-  for (const o of openings) { if (o.u0 - 0.6 - s > 1.5) free.push([s, o.u0 - 0.6]); s = o.u1 + 0.6; }
-  if (side.length - 1.2 - s > 1.5) free.push([s, side.length - 1.2]);
-  for (const [a, b] of free) {
-    let u = a;
-    const items: { p: Painting; w: number; h: number }[] = [];
-    while (u < b) {
-      const p = ctx.nextPainting(group);
-      const k = Math.min(1, opts.maxW / (p.widthCm / 100), opts.maxH / (p.heightCm / 100));
-      const w = Math.max(0.4, (p.widthCm / 100) * k), h = Math.max(0.4, (p.heightCm / 100) * k);
-      if (u + w + 0.3 > b) break;
-      items.push({ p, w, h });
-      u += w + opts.gap;
-    }
-    if (!items.length) continue;
-    // Centre the hang within the free run.
-    const total = items.reduce((t, i) => t + i.w, 0) + opts.gap * (items.length - 1);
-    let x = a + (b - a - total) / 2;
-    for (const { p, w, h } of items) {
-      const band = Math.min(0.16, 0.05 + w * 0.04);
-      const cu = x + w / 2, cy = opts.centreY;
-      const m = side.basis.clone().multiply(M(cu, cy, 0.01));
-      sink.add('plain', pictureFrame(w + band * 2, h + band * 2, band), m, { tint: 0xc9a24f, gain: 1.35 });
-      sink.add(`canvas${p.atlas}`, canvasQuad(w, h, p.rect), side.basis.clone().multiply(M(cu, cy, 0.05)), { gain: 1.05 });
-      const lr = ctx.labelRects.get(p.id);
-      if (lr) sink.add('labels', canvasQuad(0.26, 0.13, lr), side.basis.clone().multiply(M(x + w + band + 0.3, 1.45, 0.02)), { gain: 1.1 });
-      x += w + opts.gap;
-    }
+/**
+ * Hang paintings on a wall at the shared painting spots (shared/map/fixtures.ts),
+ * each artwork fitted into its spot. The canvas is tagged so Insurance Fraud
+ * can slash it out of its frame.
+ */
+function hangPaintings(sink: Sink, ctx: BuildCtx, r: Room, side: WallSide, group: string) {
+  for (const spot of wallPaintingSpots(ctx.map).filter((s) => s.room === r.id && s.side === side.key)) {
+    const p = ctx.nextPainting(group);
+    const k = Math.min(spot.w / (p.widthCm / 100), spot.h / (p.heightCm / 100));
+    const w = Math.max(0.4, (p.widthCm / 100) * k), h = Math.max(0.4, (p.heightCm / 100) * k);
+    const band = Math.min(0.16, 0.05 + w * 0.04);
+    const cu = spot.u, cy = spot.y - r.floorY;
+    sink.add('plain', pictureFrame(w + band * 2, h + band * 2, band), side.basis.clone().multiply(M(cu, cy, 0.01)), { tint: 0xc9a24f, gain: 1.35 });
+    sink.tag = spot.id;
+    sink.add(`canvas${p.atlas}`, canvasQuad(w, h, p.rect), side.basis.clone().multiply(M(cu, cy, 0.05)), { gain: 1.05 });
+    sink.tag = null;
+    const lr = ctx.labelRects.get(p.id);
+    if (lr) sink.add('labels', canvasQuad(0.26, 0.13, lr), side.basis.clone().multiply(M(cu + w / 2 + band + 0.3, 1.45, 0.02)), { gain: 1.1 });
   }
 }
 
@@ -241,10 +228,9 @@ export function buildRoom(r: Room, ctx: BuildCtx): { group: THREE.Group; collide
       }
       // Paintings on all four walls.
       for (const key of ['west', 'east', 'north', 'south'] as const) {
-        const { side, openings } = walls.get(key)!;
-        const long = key === 'west' || key === 'east';
+        const { side } = walls.get(key)!;
         const group = sculpture || /[24]$/.test(r.id) || r.id === 'asianArt' ? 'portrait' : 'european';
-        hangPaintings(sink, ctx, side, openings, group, { maxW: long ? 3.2 : 2.2, maxH: sculpture ? 2 : 2.6, centreY: sculpture ? 2.3 : 2.35, gap: 0.9 });
+        hangPaintings(sink, ctx, r, side, group);
       }
       break;
     }
@@ -257,8 +243,8 @@ export function buildRoom(r: Room, ctx: BuildCtx): { group: THREE.Group; collide
       for (let x = r.x0 + 2; x < r.x1; x += 3) sink.box('wood', x, r.ceilY - 0.35, r.z0, x + 0.3, r.ceilY, r.z1, { tint: 0x4a3626 });
       // Reliefs on the long walls.
       for (const key of ['north', 'south'] as const) {
-        const { side, openings } = walls.get(key)!;
-        hangPaintings(sink, ctx, side, openings, 'egypt', { maxW: 2.4, maxH: 1.6, centreY: 2.0, gap: 1.6 });
+        const { side } = walls.get(key)!;
+        hangPaintings(sink, ctx, r, side, 'egypt');
       }
       // Spot pools on every exhibit; dim between them.
       for (const b of blocks) light.pools.push(pool((b.x0 + b.x1) / 2, Math.min(r.ceilY - 0.5, b.y1 + 1.5), (b.z0 + b.z1) / 2, 6.5, 0xffc983, 0.75));
@@ -371,8 +357,8 @@ export function buildRoom(r: Room, ctx: BuildCtx): { group: THREE.Group; collide
         else for (let z = r.z0 + 3; z < r.z1 - 3; z += 6) sink.box('emissive', x, r.ceilY - 0.05, z, x + 3.5, r.ceilY, z + 3.5, { tint: 0xf6f3ea });
       }
       for (const key of ['west', 'east', 'north', 'south'] as const) {
-        const { side, openings } = walls.get(key)!;
-        hangPaintings(sink, ctx, side, openings, modern ? 'european' : 'portrait', { maxW: 3, maxH: 2.4, centreY: 2.4, gap: 1.6 });
+        const { side } = walls.get(key)!;
+        hangPaintings(sink, ctx, r, side, modern ? 'european' : 'portrait');
       }
       for (let x = r.x0 + 6; x < r.x1; x += 12) for (let z = r.z0 + 6; z < r.z1; z += 12) light.pools.push(pool(x, 2, z, 10, 0xfff8ee, 0.32));
       break;
@@ -427,7 +413,13 @@ export function buildRoom(r: Room, ctx: BuildCtx): { group: THREE.Group; collide
     }
   }
 
-  for (const b of blocks) buildBlock(sink, b);
+  // Exhibits; the breakable ones are tagged so Insurance Fraud can knock them down.
+  const breakable = new Set(exhibitFixtures(map).map((f) => f.block));
+  for (const b of blocks) {
+    sink.tag = breakable.has(b.id) ? `bk:${b.id}` : null;
+    buildBlock(sink, b);
+  }
+  sink.tag = null;
   for (const e of map.elevators) for (const stop of e.stops) if (stop.room === r.id) buildElevatorCab(sink, e, stop.y, light);
   extras.ambientHex = light.sky.getHex();
   const group = sink.build(light, r.id);

@@ -193,6 +193,20 @@ Found and fixed during the pass:
 - **A pre-existing culling gap.** The Great Hall didn't draw the Dinosaur Hall seen through the doorway at the top of the Grand Staircase. Fixed with a one-way "see-through" doorway hint in map data.
 - **Map floor detection.** On the front plaza the map put you on the Service level.
 
+### Playtest feedback round: elevators, climbing, guards, everything breakable (requested)
+
+| Item | Status |
+|---|---|
+| Basement: the service stairwells had a solid wall over the top of the stairs, so you couldn't climb out. Fixed: you can walk down and back up | browser (`movement-desktop.ts`) |
+| Elevators: real cabs that sit at one floor, with sliding doors on every floor; pushable floor buttons inside and a call button by each door (fingertip in VR, look + E / click on desktop); everyone in the cab rides together; requests queue | bot, browser |
+| Elevators: the Great Hall cabs were half inside the wall (their buttons were buried) and blocked the balcony. Moved clear, with landings so you can walk round them | unit (clearance), browser |
+| Jump (Space / A), climb walls (VR: grip and pull hand over hand; desktop: hold Space at a wall), pull up onto ledges | browser (jump onto the desk, climb a 3.6 m partition); VR not verified in headset |
+| Insurance Fraud guards: always on patrol (3 downstairs, 1 upstairs), vision cones drawn on the floor (blocked by walls and exhibits, same code as the server's check), HUD warning when one can see you | bot, browser |
+| Guards react only to strikes they see or hear close by (heavier tools carry further): first strike, they come to look; second, they chase. Break line of sight and they search, then return to patrol | bot, browser |
+| Caught: locked in the cells downstairs (barred gates on the security office), free to move inside; the gates open when your time is up. The basement is otherwise open | bot, browser |
+| Everything breakable: every painting on the gallery walls (≈180, small price tags by each frame, upstairs included) and the exhibits (knights, statues, sculptures, cases, sarcophagi, skeletons, the temple…) | unit, browser |
+| Temple room to match the Met | waiting for the human's map |
+
 ## Known gaps and issues
 
 - **Art.** The Met API and image hosts are blocked from the build environment, so the galleries show procedural placeholder paintings. **Human: run `npm run fetch-art` once**, check the result, and commit `client/public/assets/art/` and `docs/CREDITS-art.md`. The script is written against the documented API but has not been run.

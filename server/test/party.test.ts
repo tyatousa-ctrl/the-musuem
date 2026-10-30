@@ -26,7 +26,7 @@ process.env.MUSEUM_TUNABLES = JSON.stringify({
   crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
   // Insurance Fraud: guards come after the first bit of damage.
   // Guards hear everything and run fast here, so a chase and a catch happen quickly.
-  insuranceFraud: { heatLevels: [1, 2, 3, 4, 500], securityHoldSec: 1, guards: { hearHands: 500, hearTool: 500, hearHeavy: 500, chaseSpeed: 25 } },
+  insuranceFraud: { heatLevels: [1, 2, 3, 4, 500], securityHoldSec: 1, guards: { hearHands: 500, hearTool: 500, hearHeavy: 500, chaseSpeed: 25, strikesToChase: 3 } },
   // Short clocks for the new modes.
   hideSeek: { hideSec: 0.6, pingEverySec: 1.5, pingWarnSec: 0.5 },
   fixExhibit: { memorizeSec: 0.6, blindSec: 0.3, solveSec: 4 },

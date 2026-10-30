@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { tunables, type Elevator, type MuseumMap } from '@museum/shared';
 import type { NetState } from '../multiplayer/net';
 import type { DynamicBox } from '../player/collision';
@@ -50,6 +51,8 @@ export class Elevators {
     this.group.name = 'elevators';
     const doorMat = new THREE.MeshLambertMaterial({ color: 0xb8a27a });
     const plateMat = new THREE.MeshLambertMaterial({ color: 0xc9a24f });
+    /** All the brass button plates, merged into one mesh after the loop. */
+    const plates: THREE.BufferGeometry[] = [];
     for (const e of map.elevators) {
       const f = facingVec(e.facing), s = new THREE.Vector3(-f.z, 0, f.x); // s: along the doorway
       const inner = CAB_HALF - 0.25; // half-width of the doorway inside the brass frame
@@ -78,7 +81,8 @@ export class Elevators {
         const plate = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12 + e.stops.length * 0.13, 0.02), plateMat);
         plate.position.copy(plateCenter);
         plate.lookAt(plateCenter.clone().add(s));
-        this.group.add(plate);
+        plate.updateMatrixWorld(true);
+        plates.push(plate.geometry.clone().applyMatrix4(plate.matrixWorld));
         e.stops.forEach((target, i) => {
           const pos = plateCenter.clone().addScaledVector(s, 0.025).setY(stop.y + 1.25 + (i - (e.stops.length - 1) / 2) * 0.13);
           this.addButton('car', e.id, target.floor, target.label, pos, s);
@@ -88,12 +92,25 @@ export class Elevators {
         const callPlate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.02), plateMat);
         callPlate.position.copy(callPos).addScaledVector(f, -0.015);
         callPlate.lookAt(callPlate.position.clone().add(f));
-        this.group.add(callPlate);
+        callPlate.updateMatrixWorld(true);
+        plates.push(callPlate.geometry.clone().applyMatrix4(callPlate.matrixWorld));
         const other = e.stops.find((x) => x.floor !== stop.floor);
         this.addButton('call', e.id, stop.floor, other && other.y > stop.y ? '▲' : '▼', callPos, f);
       }
     }
+    const plateMesh = new THREE.Mesh(mergeGeometries(plates.map((g) => g.index ? g.toNonIndexed() : g))!, plateMat);
+    plateMesh.name = 'elevatorPlates';
+    this.group.add(plateMesh);
+    // The door leaves: one instanced draw for all of them (the Mesh objects stay as handy transforms).
+    const leafGeo = (this.doors[0]?.left.geometry as THREE.BufferGeometry) ?? new THREE.BoxGeometry(1, 2.6, 0.05);
+    this.leaves = new THREE.InstancedMesh(leafGeo, doorMat, this.doors.length * 2);
+    this.leaves.frustumCulled = false;
+    this.group.add(this.leaves);
+    for (const d of this.doors) { d.left.removeFromParent(); d.right.removeFromParent(); }
   }
+
+  /** Door leaves are drawn as one instanced batch (they're all the same shape). */
+  private leaves!: THREE.InstancedMesh;
 
   private addButton(kind: 'car' | 'call', elevator: string, floor: number, label: string, pos: THREE.Vector3, normal: THREE.Vector3) {
     const tex = labelTex(label, '#2a2118', '#f3dc9a');
@@ -164,6 +181,13 @@ export class Elevators {
       }
       d.box.active = d.open < 0.6;
     }
+    let n = 0;
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    for (const d of this.doors) for (const leaf of [d.left, d.right]) {
+      leaf.updateMatrix();
+      this.leaves.setMatrixAt(n++, leaf.visible ? leaf.matrix : zero);
+    }
+    this.leaves.instanceMatrix.needsUpdate = true;
     // Buttons light while their floor is on the way, and dip briefly when pushed.
     const now = performance.now();
     for (const b of this.buttons) {
@@ -172,7 +196,8 @@ export class Elevators {
       const ud = b.mesh.userData as { key: string; normal: THREE.Vector3; base: THREE.Vector3; unlit: THREE.Material };
       b.mesh.material = lit ? this.litMat.get(ud.key)! : ud.unlit;
       b.mesh.position.copy(ud.base).addScaledVector(ud.normal, now - b.pressedAt < 200 ? -0.008 : 0);
-      b.mesh.visible = viewer.distanceTo(b.pos) < 12;
+      // Buttons are small: only drawn when you're close enough to read and press them.
+      b.mesh.visible = viewer.distanceTo(b.pos) < 4.5;
     }
     return dings;
   }

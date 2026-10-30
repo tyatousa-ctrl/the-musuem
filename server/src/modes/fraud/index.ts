@@ -1,5 +1,6 @@
 import {
-  AGENT_KINDS, AgentNav, DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, MOODS, canDamage, hitDamage, inSight, money, routeOnFloor,
+  AGENT_KINDS, AgentNav, DESTRUCTIBLE_CENTER, DESTRUCTIBLE_NAME, FIXTURE_NAME, MOODS, canDamage, exhibitFixtures, hitDamage, inSight, money, routeOnFloor,
+  wallPaintingSpots,
   securityLevel, splitUltraCredit, toolClass, type Hand, type Spawn,
 } from '@museum/shared';
 import type { BreakableT, ObjectT, PlayerT } from '../../state/schema.js';
@@ -282,6 +283,19 @@ export function createFraudMode(): ServerMode {
         });
         if (hasAnchors) steps.set(s.id, {});
       }
+      // Everything else is breakable too: every painting on the gallery walls and the exhibits themselves.
+      for (const w of wallPaintingSpots(ctx.map)) {
+        const cat = c.catalogue.wallPainting;
+        ctx.systems.breakables.add(w.id, 'destructible', [w.x, w.y, w.z], '', {
+          hp: cat.hp, variant: 'wallPainting', value: Math.max(5, Math.round((cat.value * w.w * w.h) / 4)), tool: cat.tool, radius: Math.min(1.3, w.w / 2), yaw: w.yaw,
+        });
+      }
+      for (const f of exhibitFixtures(ctx.map)) {
+        const cat = c.catalogue[f.variant];
+        ctx.systems.breakables.add(f.id, 'destructible', [f.x, f.y, f.z], '', {
+          hp: cat.hp, variant: f.variant, value: cat.value, tool: cat.tool, radius: Math.min(cat.radius, Math.max(f.hx, f.hz) + 0.2),
+        });
+      }
       for (const s of slots.filter((x) => x.kind === 'tool')) spawnTool(ctx, s.id);
       ctx.systems.teams.clear();
       for (const p of ctx.players()) { p.score = 0; p.wanted = 0; ctx.teleport(p, mode.spawnFor(ctx, p)); }
@@ -337,7 +351,7 @@ export function createFraudMode(): ServerMode {
         const left = [...ctx.state.breakables.values()].filter((x) => x.parent === b.parent && x.stage < 2).length;
         const ultra = ctx.state.breakables.get(b.parent);
         if (!ultra) return;
-        const name = DESTRUCTIBLE_NAME[ultra.variant];
+        const name = DESTRUCTIBLE_NAME[ultra.variant] ?? FIXTURE_NAME[ultra.variant];
         if (left === 0) {
           ultra.locked = false;
           ctx.announce(`The ${name} is loose! ${money(ultra.value)} for whoever brings it down.`, 'alert');

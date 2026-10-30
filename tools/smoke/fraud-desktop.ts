@@ -3,7 +3,7 @@
  * vase with bare hands, take a mallet (E), smash a bust, raise your Security
  * Level until a guard comes and you are held. Screenshots of the big pieces.
  *
- *   MUSEUM_TUNABLES='{"net":{"maxPoseSpeed":10000},"round":{"countdownSec":1},"insuranceFraud":{"heatLevels":[10,25,40,60,500],"heatDecayPerSec":2,"guards":{"hearHands":500,"hearTool":500,"hearHeavy":500,"chaseSpeed":6,"strikesToChase":6,"memorySec":300}}}' PORT=2568 npx tsx server/src/index.ts
+ *   MUSEUM_TUNABLES='{"net":{"maxPoseSpeed":10000},"round":{"countdownSec":1},"insuranceFraud":{"heatLevels":[10,25,40,60,500],"heatDecayPerSec":2,"guards":{"hearHands":500,"hearTool":500,"hearHeavy":500,"chaseSpeed":6,"strikesToChase":4,"memorySec":300}}}' PORT=2568 npx tsx server/src/index.ts
  *   VITE_SERVER_URL=http://localhost:2568 npx vite --port 5174   (in client/)
  *   SMOKE_BASE=http://localhost:5174 npx tsx tools/smoke/fraud-desktop.ts
  */
@@ -52,13 +52,16 @@ const smash = async (id: string, side: [number, number], times: number) => {
   return B(id);
 };
 
+// Note when security catches us, whenever it happens.
+await page.evaluate(`(() => { window.__caught = false; ${G}.net.on('announcement', (m) => { if (/Caught!/.test(m.text)) window.__caught = true; }); })()`);
+
 // 0. Guards are on patrol from the start, each with a vision cone on the floor.
 await page.waitForFunction(`${G}.net.state.agents.size >= 3`, undefined, { timeout: 10000 }).catch(() => fail('no guards on patrol'));
 const g1 = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => { if (!g && Math.abs(a.y) < 1) g = { x: a.x, z: a.z, yaw: a.yaw }; }); return g; })()`) as any;
 // Stand 6 m in front of a guard, inside its cone, and look at it.
 await page.evaluate(`(() => { const g = ${G}; const fx = -Math.sin(${g1.yaw}), fz = -Math.cos(${g1.yaw}); g.player.teleport([${g1.x} + fx * 6, 0, ${g1.z} + fz * 6], ${g1.yaw} + Math.PI); g.player.pitch = -0.35; })()`);
 await page.waitForTimeout(1500);
-const cones = await page.evaluate(`${G}.scene.getObjectByName('visionCones').children.length`) as number;
+const cones = await page.evaluate(`${G}.mode.update && window.__museum.game.scene.getObjectByName('visionCones').children[0].geometry.attributes.position.count / 42`) as number;
 console.log('vision cones drawn:', cones, '· seen:', await page.evaluate(`${G}.net.me().seen`));
 if (cones < 3) fail('vision cones missing');
 await page.screenshot({ path: 'docs/screens/_smoke-fraud-cones.png' });
@@ -89,7 +92,12 @@ await page.screenshot({ path: 'docs/screens/_smoke-fraud-mallet.png' });
 // 4. More smashing. Those strikes are heard: enough of them and a guard gives chase. Watch it come, then get caught and locked in the cells.
 await smash('ghBustS', [0, -1], 3);
 await smash('ghUrnS', [-1, 0], 2);
-await page.waitForFunction(`[...${G}.net.state.agents.values()].some((a) => a.mood === 6) || ${G}.net.me().status === 'held'`, undefined, { timeout: 15000 }).catch(() => fail('no guard gave chase'));
+// Keep at it until a guard gives chase (strikes are only noticed when a guard is close enough to hear).
+for (const id of ['ghVaseS', 'ghUrnN', 'grAmphoraN']) {
+  if (await page.evaluate(`[...${G}.net.state.agents.values()].some((a) => a.mood === 6) || window.__caught`)) break;
+  await smash(id, [1, 0], 2);
+}
+await page.waitForFunction(`[...${G}.net.state.agents.values()].some((a) => a.mood === 6) || window.__caught`, undefined, { timeout: 15000 }).catch(() => fail('no guard gave chase'));
 const chaser = await page.evaluate(`(() => { let g; ${G}.net.state.agents.forEach((a) => { if (a.mood === 6) g = { x: a.x, z: a.z }; }); return g; })()`) as any;
 if (chaser) {
   const m = await me();
@@ -97,11 +105,7 @@ if (chaser) {
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'docs/screens/_smoke-fraud-guard.png' });
 }
-for (let i = 0; i < 12 && process.env.DEBUG_GUARDS; i++) {
-  console.log('  guards', await page.evaluate(`JSON.stringify([...${G}.net.state.agents.values()].map((a) => [a.x.toFixed(1), a.y, a.z.toFixed(1), a.mood]))`), 'me', JSON.stringify(await me()));
-  await page.waitForTimeout(1000);
-}
-await page.waitForFunction(`${G}.net.me().status === 'held'`, undefined, { timeout: 30000 }).catch(() => fail('the guard never caught us'));
+await page.waitForFunction('window.__caught', undefined, { timeout: 30000 }).catch(() => fail('the guard never caught us'));
 await page.waitForTimeout(1500);
 console.log('held:', JSON.stringify(await hud()), '· cell door open?', await page.evaluate(`${G}.net.state.doors.get('jailDoor').open`));
 await page.evaluate(`(() => { ${G}.player.yaw = -Math.PI / 2; ${G}.player.pitch = -0.1; })()`);

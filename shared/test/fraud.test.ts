@@ -4,6 +4,7 @@ import { groundHeightAt } from '../src/map/ground.js';
 import { roomAt } from '../src/map/graph.js';
 import { cloneTunables } from '../src/config/tunables.js';
 import { AgentNav, routeOnFloor } from '../src/rules/agents.js';
+import { FIXTURE_NAME, exhibitFixtures, wallPaintingSpots } from '../src/map/fixtures.js';
 import {
   DESTRUCTIBLE_CENTER, canDamage, hitDamage, money, securityLevel, simulateEconomy, splitUltraCredit, type Strategy,
 } from '../src/rules/fraud.js';
@@ -25,9 +26,9 @@ describe('Insurance Fraud map data', () => {
 
   it('uses every catalogue entry and tool, and each ultra has three anchors', () => {
     const used = new Set(destructibles.map((s) => s.variant));
-    for (const k of Object.keys(cfg.catalogue)) expect(used.has(k), k).toBe(true);
+    for (const k of Object.keys(cfg.catalogue)) if (!k.startsWith('ex') && k !== 'wallPainting') expect(used.has(k), k).toBe(true);
     for (const k of Object.keys(cfg.tools)) expect(tools.some((t) => t.variant === k), k).toBe(true);
-    for (const k of Object.keys(cfg.catalogue)) expect(DESTRUCTIBLE_CENTER[k], k).toBeGreaterThan(0);
+    for (const k of Object.keys(cfg.catalogue)) if (!k.startsWith('ex') && k !== 'wallPainting') expect(DESTRUCTIBLE_CENTER[k], k).toBeGreaterThan(0);
     const ultras = destructibles.filter((s) => destructibles.some((a) => a.parent === s.id));
     expect(ultras.map((u) => u.variant).sort()).toEqual(['canvas', 'gate', 'mammoth']);
     for (const u of ultras) expect(destructibles.filter((a) => a.parent === u.id)).toHaveLength(3);
@@ -116,5 +117,35 @@ describe('guard navigation', () => {
       }
       expect(Math.hypot(g.x - tx, g.z - tz), `reach ${tx},${tz}`).toBeLessThan(1.5);
     }
+  });
+});
+
+describe('everything is breakable: fixtures', () => {
+  it('hangs paintings on the gallery walls, clear of doorways, each with a price', () => {
+    const spots = wallPaintingSpots(museum);
+    expect(spots.length).toBeGreaterThan(80);
+    expect(new Set(spots.map((s) => s.id)).size).toBe(spots.length);
+    // Every upstairs paintings gallery has paintings.
+    for (const r of museum.rooms.filter((x) => x.id.startsWith('paint'))) expect(spots.some((s) => s.room === r.id), r.id).toBe(true);
+    for (const s of spots) {
+      const r = museum.rooms.find((x) => x.id === s.room)!;
+      expect(s.x >= r.x0 && s.x <= r.x1 && s.z >= r.z0 && s.z <= r.z1, s.id).toBe(true);
+      // Not in front of a doorway on its wall.
+      for (const p of museum.portals.filter((q) => q.a === r.id || q.b === r.id)) {
+        if (Math.abs(p.y - r.floorY) > 0.5) continue;
+        const along = p.axis === 'x' ? Math.abs(s.x - p.x) : Math.abs(s.z - p.z);
+        const across = p.axis === 'x' ? Math.abs(s.z - p.z) : Math.abs(s.x - p.x);
+        if (across < 1) expect(along, `${s.id} vs ${p.id}`).toBeGreaterThan(p.width / 2 + s.w / 2);
+      }
+    }
+    expect(cfg.catalogue.wallPainting.value).toBeGreaterThan(0);
+  });
+
+  it('every exhibit fixture has a catalogue entry and a name; the big three anchored pieces stay the top prizes', () => {
+    const fx = exhibitFixtures(museum);
+    expect(fx.length).toBeGreaterThan(40);
+    for (const f of fx) { expect(cfg.catalogue[f.variant], f.variant).toBeDefined(); expect(FIXTURE_NAME[f.variant], f.variant).toBeTruthy(); }
+    expect(fx.some((f) => f.variant === 'exSkeleton')).toBe(true);
+    expect(fx.some((f) => f.block === 'pedestalA')).toBe(false); // CTR relic pedestals aren't exhibits
   });
 });

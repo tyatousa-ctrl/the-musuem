@@ -113,41 +113,46 @@ const CONE_COLOR: Record<string, number> = { ok: 0xffd56b, waiting: 0xff9a3a, al
 class Cones {
   readonly group = new THREE.Group();
   private navs = new Map<number, AgentNav>();
-  private meshes = new Map<string, THREE.Mesh>();
+  /** Every guard's cone in one mesh (one draw call), coloured per guard. */
+  private mesh = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide }));
   private acc = 0;
-  constructor() { this.group.name = 'visionCones'; }
+  private c = new THREE.Color();
+  constructor() {
+    this.group.name = 'visionCones';
+    this.mesh.renderOrder = 5;
+    this.mesh.frustumCulled = false;
+    this.group.add(this.mesh);
+  }
   private nav(floorY: number) {
     let n = this.navs.get(floorY);
     if (!n) { n = new AgentNav(museum, floorY); this.navs.set(floorY, n); }
     return n;
   }
+  /** Number of cones drawn (for tests). */
+  count = 0;
   update(ctx: ClientModeCtx, dt: number) {
     this.acc += dt;
     if (this.acc < 0.1) return; // 10 Hz, like the guards themselves
     this.acc = 0;
     const g = tunables.insuranceFraud.guards;
-    const seen = new Set<string>();
-    ctx.net.state?.agents?.forEach((a: NetState, id: string) => {
-      seen.add(id);
+    const pos: number[] = [], col: number[] = [];
+    this.count = 0;
+    ctx.net.state?.agents?.forEach((a: NetState) => {
       const floorY = Math.round(a.y);
       const fan = visionFan(this.nav(floorY), { x: a.x, z: a.z, yaw: a.yaw }, g.sightRange, g.sightHalfAngleDeg);
-      const pos: number[] = [];
-      for (let i = 0; i + 1 < fan.length; i++) pos.push(a.x, 0, a.z, fan[i][0], 0, fan[i][1], fan[i + 1][0], 0, fan[i + 1][1]);
-      let m = this.meshes.get(id);
-      if (!m) {
-        m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }));
-        m.renderOrder = 5;
-        this.meshes.set(id, m);
-        this.group.add(m);
-      }
-      m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      m.geometry.computeBoundingSphere();
-      m.position.y = floorY + 0.04;
       const mood = MOODS[a.mood] ?? 'ok';
-      (m.material as THREE.MeshBasicMaterial).color.setHex(CONE_COLOR[mood] ?? CONE_COLOR.ok);
-      (m.material as THREE.MeshBasicMaterial).opacity = mood === 'alert' ? 0.32 : 0.2;
+      this.c.setHex(CONE_COLOR[mood] ?? CONE_COLOR.ok);
+      const y = floorY + 0.04;
+      for (let i = 0; i + 1 < fan.length; i++) {
+        pos.push(a.x, y, a.z, fan[i][0], y, fan[i][1], fan[i + 1][0], y, fan[i + 1][1]);
+        for (let k = 0; k < 3; k++) col.push(this.c.r, this.c.g, this.c.b);
+      }
+      this.count++;
     });
-    for (const [id, m] of this.meshes) if (!seen.has(id)) { m.removeFromParent(); m.geometry.dispose(); this.meshes.delete(id); }
+    const geo = this.mesh.geometry;
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    this.mesh.visible = pos.length > 0;
   }
 }
 
