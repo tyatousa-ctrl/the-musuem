@@ -18,7 +18,7 @@ import { AudioEngine, type Sfx } from './audio/audio';
 import { PanelInput } from './ui/panel';
 import { Announcer, HOW_TO, LobbyTotem, PersonalMenu, WristHud, fmtTime } from './ui/menus';
 import { DesktopOverlay } from './ui/overlay';
-import { ElevatorPanels } from './ui/elevators';
+import { Elevators, type ElevatorButton } from './interaction/elevators';
 import { CornerTimer } from './ui/corner';
 import { MiniMap, type MapPlayer } from './ui/minimap';
 import { DynamicCull } from './world/dyncull';
@@ -49,7 +49,7 @@ export class Game {
   readonly objects = new WorldObjects();
   readonly breakables = new Breakables();
   doors!: Doors;
-  elevators!: ElevatorPanels;
+  elevators!: Elevators;
   private desktop: DesktopInput;
   private xrInput = new XRInput();
   private actions: Actions = emptyActions();
@@ -116,9 +116,8 @@ export class Game {
     this.scene.add(this.menu.panel.mesh, this.announcer.panel.mesh);
     this.panels.panels.add(this.menu.panel);
     this.player.camera.add(this.perf.panel);
-    this.elevators = new ElevatorPanels(museum, (e, floor) => this.rideElevator(e.id, floor));
+    this.elevators = new Elevators(museum);
     this.scene.add(this.elevators.group);
-    for (const p of this.elevators.panels) this.panels.panels.add(p);
     this.perf.panel.position.set(-0.18, -0.12, -0.5);
 
     const steps = museum.spawns.exterior[0];
@@ -284,7 +283,7 @@ export class Game {
     this.player.blackout = blind;
     this.player.frozen = ko || held || blind ? 0.1 : this.player.frozen;
     this.player.speedMul = this.carrying() ? tunables.ctr.carrierSpeedMul : this.holding('sledgehammer') ? tunables.insuranceFraud.sledgeSpeedMul : 1;
-    this.player.dynamicBoxes = this.breakables.boxes.length ? [...this.doors.boxes, ...this.breakables.boxes] : this.doors.boxes;
+    this.player.dynamicBoxes = [...this.doors.boxes, ...this.elevators.boxes, ...this.breakables.boxes];
     // Late joiners in a timed mode spectate with a free-fly camera on desktop (brief §12.3).
     const spectating = me?.status === 'spectating';
 
@@ -310,7 +309,7 @@ export class Game {
 
     // UI.
     this.menu.update();
-    this.elevators.update(head);
+    for (const at of this.elevators.update(this.net?.state, dt, head)) this.audio.play('ding', at, { gain: 0.8, refDistance: 3 });
     this.totem?.update();
     this.announcer.update();
     this.updateHud(xr);
@@ -352,6 +351,7 @@ export class Game {
     for (const h of HANDS) { this.player.hands[h].glove.update(dt); this.player.hands[h].sample(this.elapsed); }
     this.hitCooldown.left = Math.max(0, this.hitCooldown.left - dt);
     this.hitCooldown.right = Math.max(0, this.hitCooldown.right - dt);
+    this.buttonCooldown.left -= dt; this.buttonCooldown.right -= dt;
     const me = this.net?.me();
     // Keep local held ids in sync with the server.
     if (me) for (const h of HANDS) {
@@ -402,6 +402,11 @@ export class Game {
         }
         if (!grip && this.prevGrip[h] && hand.heldId) this.release(h, hand.velocity);
         this.prevGrip[h] = grip;
+        // Push elevator buttons with a fingertip.
+        if (!hand.heldId && this.buttonCooldown[h] <= 0) {
+          const b = this.elevators.hitTest(hand.pos, 0.06);
+          if (b) { this.pressButton(b); this.buttonCooldown[h] = 0.6; this.haptic(h, 0.5, 40); }
+        }
         // Physical hits: fast hand into glass or into another player.
         if (hand.speed() > tunables.combat.shoveSpeed && this.hitCooldown[h] === 0) this.physicalHit(h, hand.speed());
       }
@@ -416,17 +421,22 @@ export class Game {
       const hand = this.player.hands[h];
       if (hand.heldId) this.release(h, tmpB.copy(this.player.velocity).setY(0));
       else {
-        const id = this.objectInFront(head, tmpDir, 2.2);
-        if (id) this.grab(h, id, true);
+        const button = this.elevators.inFront(head, tmpDir, 2.4);
+        const id = button ? null : this.objectInFront(head, tmpDir, 2.2);
+        if (button) { this.reachTo('right', button.pos); this.pressButton(button); }
+        else if (id) this.grab(h, id, true);
         else {
           const door = this.doors.near(head, 2.2);
-          const cab = ElevatorPanels.cabAt(museum, this.player.feet);
+          const cab = Elevators.cabAt(museum, this.player.feet);
           if (door) { net.send('useDoor', { id: door }); this.audio.play('door', this.doors.position(door)); }
+          // Standing in a cab without looking at a button: E sends it to the other floor.
           else if (cab) this.rideElevator(cab.e.id, cab.e.stops.find((s) => s.floor !== cab.floor)!.floor);
         }
       }
     }
-    if (a.useRightPressed) {
+    const lookButton = a.useRightPressed ? this.elevators.inFront(head, tmpDir, 2.4) : null;
+    if (lookButton) { this.reachTo('right', lookButton.pos); this.pressButton(lookButton); }
+    else if (a.useRightPressed) {
       const right = this.player.hands.right;
       this.punchAnim = 1;
       const caseId = this.breakables.inFront(head, tmpDir, this.player.hands.right.heldId ? 2.4 : 2.0);
@@ -472,13 +482,21 @@ export class Game {
     this.net!.send('release', { hand: h, pos: [hand.pos.x, hand.pos.y, hand.pos.z], vel: [vel.x, vel.y, vel.z] });
   }
 
-  /** Ride an elevator: the server moves us (it checks we are in the cab). Offline, move locally. */
+  /** An elevator button: a floor button in the cab, or the call button by the door. */
+  private buttonCooldown: Record<Hand, number> = { left: 0, right: 0 };
+  pressButton(b: ElevatorButton) {
+    this.elevators.pressed(b);
+    this.audio.play('click', b.pos, { gain: 0.8 });
+    if (b.kind === 'car') this.rideElevator(b.elevator, b.floor);
+    else this.net?.send('callElevator', { id: b.elevator, floor: b.floor });
+  }
+
+  /** Ride an elevator: the server runs the cab (it checks we are in it). Offline, move locally. */
   rideElevator(id: string, floor: number) {
-    this.audio.play('ui');
     if (this.net) { this.net.send('elevator', { id, floor }); return; }
     const e = museum.elevators.find((x) => x.id === id);
     const to = e?.stops.find((s) => s.floor === floor);
-    const from = e && ElevatorPanels.cabAt(museum, this.player.feet);
+    const from = e && Elevators.cabAt(museum, this.player.feet);
     if (!e || !to || !from || from.floor === floor) return;
     this.player.flash();
     this.audio.play('ding', undefined, { gain: 0.7 });

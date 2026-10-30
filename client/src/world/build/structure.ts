@@ -43,9 +43,16 @@ export function openingsFor(map: MuseumMap, r: Room, side: WallSide): Opening[] 
       : side.key === 'west' ? p.axis === 'z' && p.x === r.x0
       : p.axis === 'z' && p.x === r.x1;
     if (!onLine) continue;
-    if (p.y < r.floorY - 0.01 || p.y >= r.ceilY) continue;
     const rel = new THREE.Vector3(p.x, 0, p.z).sub(new THREE.Vector3(side.origin.x, 0, side.origin.z));
     const u = rel.dot(side.dir);
+    // A stair hole's opening sits at the top of a stairwell (its ceiling): cut the top of the wall
+    // where the stairs come up, or the wall covers the last steps and you can't climb out.
+    if (p.kind === 'opening' && Math.abs(p.y - r.ceilY) < 0.01) {
+      const H = r.ceilY - r.floorY;
+      out.push({ u0: u - p.width / 2, u1: u + p.width / 2, v0: Math.max(0, H - p.height), v1: H, portal: p });
+      continue;
+    }
+    if (p.y < r.floorY - 0.01 || p.y >= r.ceilY) continue;
     const v0 = p.y - r.floorY;
     out.push({ u0: u - p.width / 2, u1: u + p.width / 2, v0, v1: v0 + p.height, portal: p });
   }

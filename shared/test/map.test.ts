@@ -50,6 +50,19 @@ describe('museum map data', () => {
     }
   });
 
+  it('every elevator cab stands clear of the room walls (0.5 m thick), so its buttons are reachable', () => {
+    for (const e of museum.elevators) for (const s of e.stops) {
+      const r = museum.rooms.find((x) => x.id === s.room)!;
+      for (const [lo, hi] of [[e.x - 1.4 - r.x0, r.x1 - e.x - 1.4], [e.z - 1.4 - r.z0, r.z1 - e.z - 1.4]]) {
+        expect(Math.min(lo, hi), `${e.id}@${s.label}`).toBeGreaterThanOrEqual(0.5);
+      }
+    }
+  });
+
+  it("the Great Hall cabs clear its 1 m corner piers", () => {
+    for (const e of museum.elevators.filter((x) => x.id.startsWith('elevGreatHall'))) expect(e.x - 1.4).toBeGreaterThanOrEqual(13.5);
+  });
+
   it('has a second floor reachable by stairs and elevators', () => {
     const upstairs = museum.rooms.filter((r) => r.floorY >= 8);
     expect(upstairs.length).toBeGreaterThanOrEqual(10);

@@ -21,6 +21,7 @@ const SPAWN_B = museum.spawns.teamB[0].pos;
 process.env.MUSEUM_TUNABLES = JSON.stringify({
   round: { countdownSec: 0.2, resultsSec: 0.3 },
   net: { maxPoseSpeed: 10000, reconnectWindowSec: 5 },
+  elevator: { doorSec: 0.2, travelSec: 0.2 },
   // Crowd Control: quick arrivals, and everyone starts out going the wrong way.
   crowdControl: { spawnIntervalSec: 0.3, wrongAtStartChance: [1, 1, 1, 1, 1] },
   // Insurance Fraud: guards come after the first bit of damage.
@@ -501,25 +502,51 @@ describe('every mode: join mid-round, host leaves mid-round', () => {
 });
 
 describe('Elevators', () => {
-  it('ride from the Great Hall floor to the balcony only when standing in the cab', async () => {
+  it('rides only when standing in the cab; everyone inside rides together; call buttons bring the cab', async () => {
     const e = museum.elevators.find((x) => x.id === 'elevGreatHallN')!;
     const a = await join('elevator-party-111', 'e1');
-    const teleports: { pos: number[]; fade?: boolean }[] = [];
-    a.onMessage('teleport', (m: { pos: number[]; fade?: boolean }) => teleports.push(m));
-    // Outside the cab: ignored.
+    const b = await join('elevator-party-111', 'e2');
+    const c = await join('elevator-party-111', 'e3');
+    const fades = (r: Room) => { const out: { pos: number[] }[] = []; r.onMessage('teleport', (m: { pos: number[]; fade?: boolean }) => { if (m.fade) out.push(m); }); return out; };
+    const ta = fades(a), tb = fades(b), tc = fades(c);
+    const cab = () => st(a).elevators.get(e.id);
+    expect(cab().floor).toBe(1);
+    expect(cab().state).toBe('open');
+
+    // Outside the cab: the floor button does nothing.
     pose(a, e.x + 5, 0, e.z);
     await sleep(80);
     a.send('elevator', { id: e.id, floor: 2 });
-    await sleep(200);
-    expect(teleports.filter((t) => t.fade)).toHaveLength(0);
-    // Inside the cab on floor 1: up to floor 2 with a fade.
-    pose(a, e.x + 0.5, 0, e.z);
-    await sleep(80);
+    await sleep(300);
+    expect(cab().state).toBe('open');
+
+    // Two players in the cab, one outside: press 2. Doors close, the cab goes up, both arrive together.
+    pose(a, e.x + 0.5, 0, e.z - 0.5);
+    pose(b, e.x - 0.5, 0, e.z + 0.5);
+    pose(c, e.x + 4, 0, e.z);
+    await sleep(100);
     a.send('elevator', { id: e.id, floor: 2 });
-    await waitFor(() => teleports.some((t) => t.fade), 2000, 'elevator teleport');
-    const t = teleports.find((x) => x.fade)!;
-    expect(t.pos[1]).toBe(8);
-    expect(t.pos[0]).toBeCloseTo(e.x + 0.5, 3);
-    await a.leave();
+    await waitFor(() => cab().state === 'closing', 1000, 'doors closing');
+    await waitFor(() => cab().floor === 2 && ta.length === 1 && tb.length === 1, 3000, 'both riders arrive');
+    expect(ta[0].pos[1]).toBe(8);
+    expect(tb[0].pos[0]).toBeCloseTo(e.x - 0.5, 3); // standing where they stood
+    expect(tc).toHaveLength(0); // the player outside stays put
+
+    // The player downstairs calls it back down with the call button by the door.
+    pose(a, e.x + 4.5, 8, e.z - 0.5); pose(b, e.x + 5, 8, e.z); // a and b step out upstairs
+    await sleep(100);
+    c.send('callElevator', { id: e.id, floor: 1 });
+    await waitFor(() => cab().floor === 1 && cab().state !== 'moving', 4000, 'cab comes down');
+    // Nobody was inside, so nobody moved.
+    expect(ta).toHaveLength(1);
+    expect(tb).toHaveLength(1);
+    // Calling from too far away does nothing.
+    pose(b, e.x + 15, 8, e.z);
+    await sleep(100);
+    b.send('callElevator', { id: e.id, floor: 2 });
+    await sleep(600);
+    expect(cab().floor).toBe(1);
+    await Promise.all([a.leave(), b.leave(), c.leave()]);
   });
 });
+

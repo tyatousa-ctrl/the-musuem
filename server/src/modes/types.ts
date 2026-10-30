@@ -20,7 +20,8 @@ export interface ModeContext {
   announce(text: string, tone?: ServerEvents['announcement']['tone'], team?: Team): void;
   broadcast<K extends keyof ServerEvents>(type: K, payload: ServerEvents[K]): void;
   sendTo<K extends keyof ServerEvents>(playerId: string, type: K, payload: ServerEvents[K]): void;
-  teleport(player: PlayerT, spawn: Spawn): void;
+  /** Move a player. fade: a brief fade to black; keepYaw: keep their current facing (elevators). */
+  teleport(player: PlayerT, spawn: Spawn, opts?: { fade?: boolean; keepYaw?: boolean }): void;
 }
 
 /** What a grab attempt resolves to. 'consumed' means the mode handled it (e.g. a relic return). */

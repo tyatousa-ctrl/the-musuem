@@ -91,6 +91,19 @@ export const AgentT = schema({
 }, 'Agent');
 export type AgentT = SchemaType<typeof AgentT>;
 
+/** An elevator cab: which floor it is at and what its doors are doing. */
+export const ElevatorT = schema({
+  id: t.string().default(''),
+  floor: t.uint8().default(1),
+  /** 'open' | 'closing' | 'moving' | 'opening' */
+  state: t.string().default('open'),
+  /** Floor it is heading to (0 = none). */
+  dest: t.uint8().default(0),
+  /** Server clock when the current state ends. */
+  until: t.number().default(0),
+}, 'Elevator');
+export type ElevatorT = SchemaType<typeof ElevatorT>;
+
 export const DoorT = schema({
   id: t.string().default(''),
   open: t.boolean().default(false),
@@ -132,5 +145,6 @@ export const PartyState = schema({
   breakables: t.map(BreakableT),
   doors: t.map(DoorT),
   agents: t.map(AgentT),
+  elevators: t.map(ElevatorT),
 }, 'PartyState');
 export type PartyState = SchemaType<typeof PartyState>;

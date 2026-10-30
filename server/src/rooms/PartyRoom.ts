@@ -196,19 +196,8 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       const target = this.state.players.get(String(m.targetId));
       if (target) this.systems.combat.hit(p, target, m.kind === 'bonk' ? 'bonk' : 'shove', num(m.speed), vec(m.dir));
     });
-    this.on('elevator', (p, m) => {
-      const e = museum.elevators.find((x) => x.id === String(m.id));
-      const target = e?.stops.find((s) => s.floor === Number(m.floor));
-      if (!e || !target || p.status !== 'active') return;
-      // Must be standing inside the cab, at one of its stops.
-      const inCab = Math.abs(p.head.px - e.x) < 1.6 && Math.abs(p.head.pz - e.z) < 1.6;
-      const here = e.stops.find((s) => Math.abs(p.feetY - s.y) < 1.2);
-      if (!inCab || !here || here === target) return;
-      this.teleportGrace.set(p.id, Date.now() + 1500);
-      p.head.py += target.y - here.y;
-      p.feetY = target.y;
-      this.sendTo(p.id, 'teleport', { pos: [p.head.px, target.y, p.head.pz], yaw: 0, fade: true, keepYaw: true });
-    });
+    this.on('elevator', (p, m) => this.systems.elevators.press(p, String(m.id), Number(m.floor)));
+    this.on('callElevator', (p, m) => this.systems.elevators.call(p, String(m.id), Number(m.floor)));
     this.on('touchAgent', (p, m) => {
       if (this.state.phase === 'playing') this.mode?.onRequest?.(this.ctx, p, 'touchAgent', { id: String(m.id) });
     });
@@ -351,7 +340,7 @@ export class PartyRoom extends Room<{ state: PartyState }> {
       announce: (text, tone = 'info', team) => this.announce(text, tone, team),
       broadcast: (type, payload) => this.broadcast(type, payload),
       sendTo: (id, type, payload) => this.sendTo(id, type, payload),
-      teleport: (p, spawn) => this.teleport(p, spawn),
+      teleport: (p, spawn, opts) => this.teleport(p, spawn, opts),
     };
   }
 
@@ -369,11 +358,11 @@ export class PartyRoom extends Room<{ state: PartyState }> {
   private announceAll(text: string, tone: ServerEvents['announcement']['tone']) { this.announce(text, tone); }
 
   /** Move a player: the client owns its pose, so the server tells it where to go. */
-  private teleport(p: PlayerT, spawn: Spawn) {
+  private teleport(p: PlayerT, spawn: Spawn, opts: { fade?: boolean; keepYaw?: boolean } = {}) {
     this.teleportGrace.set(p.id, Date.now() + 1500);
     p.head.px = spawn.pos[0]; p.head.py = spawn.pos[1] + 1.6; p.head.pz = spawn.pos[2];
     p.feetY = spawn.pos[1];
-    this.sendTo(p.id, 'teleport', { pos: [...spawn.pos], yaw: spawn.yaw });
+    this.sendTo(p.id, 'teleport', { pos: [...spawn.pos], yaw: spawn.yaw, ...opts });
   }
 }
 

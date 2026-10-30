@@ -9,6 +9,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { chromium } from 'playwright';
+import { museum } from '@museum/shared';
 
 const base = process.env.SMOKE_BASE ?? 'http://localhost:5174';
 const browser = await chromium.launch({
@@ -43,17 +44,55 @@ console.log(`walk ${walk.toFixed(2)} m/s, sprint ${sprint.toFixed(2)} m/s`);
 if (Math.abs(walk - 2.6) > 0.2) fail(`walk speed ${walk}`);
 if (Math.abs(sprint - 4.2) > 0.2) fail(`sprint speed ${sprint}`);
 
-// 2. Elevator: stand in the Great Hall's north-west cab, press E, arrive on the balcony; E again to go down.
-await tp(14.6, 0, -26.5, Math.PI / 2);
-await page.waitForTimeout(1000);
-await page.keyboard.press('KeyE');
-await page.waitForFunction(`${G}.player.feet.y > 7.5`, undefined, { timeout: 10000 }).catch(() => fail('elevator did not go up'));
-console.log('after elevator up:', (await feet()).map((v) => v.toFixed(1)).join(', '), await room());
-await page.screenshot({ path: 'docs/screens/_smoke-elevator-up.png' });
-await page.waitForTimeout(1200);
-await page.keyboard.press('KeyE');
-await page.waitForFunction(`${G}.player.feet.y < 0.5`, undefined, { timeout: 10000 }).catch(() => fail('elevator did not come down'));
-console.log('after elevator down:', (await feet()).map((v) => v.toFixed(1)).join(', '));
+// 2. Elevators: look at the floor button in the cab and press E; the doors close, the cab rises, we arrive.
+const button = (id: string, kind: string, floor: number) => page.evaluate(`(() => { const b = ${G}.elevators.buttons.find((x) => x.elevator === '${id}' && x.kind === '${kind}' && x.floor === ${floor}); return b.pos.toArray(); })()`) as Promise<number[]>;
+/** Stand `back` m from a point at eye level and look straight at it. */
+const lookAt = async (p: number[], from: [number, number], floorY: number) => {
+  await tp(from[0], floorY, from[1], Math.atan2(-(p[0] - from[0]), -(p[2] - from[1])));
+  await page.waitForTimeout(600);
+  await page.evaluate(`(() => { const g = ${G}; const d = Math.hypot(${p[0]} - ${from[0]}, ${p[2]} - ${from[1]}); g.player.pitch = Math.atan2(${p[1]} - (${floorY} + 1.65), d); })()`);
+  await page.waitForTimeout(400);
+};
+for (const id of ['elevGreatHallN', 'elevGreatHallS']) {
+  const e = museum.elevators.find((x) => x.id === id)!;
+  // Up: from inside the cab, press 2.
+  const up = await button(id, 'car', 2);
+  await lookAt(up, [e.x + 0.6, e.z], 0);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(`${G}.player.feet.y > 7.5`, undefined, { timeout: 15000 }).catch(() => fail(`${id}: floor button did not take us up`));
+  console.log(`${id} up:`, (await feet()).map((v) => v.toFixed(1)).join(', '), await room());
+  if (id === 'elevGreatHallN') await page.screenshot({ path: 'docs/screens/_smoke-elevator-up.png' });
+  // Down: press 1.
+  const down = await button(id, 'car', 1);
+  await page.waitForTimeout(1500);
+  await lookAt(down, [e.x + 0.6, e.z], 8);
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(`${G}.player.feet.y < 0.5`, undefined, { timeout: 15000 }).catch(() => fail(`${id}: floor button did not take us down`));
+  console.log(`${id} down:`, (await feet()).map((v) => v.toFixed(1)).join(', '));
+}
+// The balcony: walk from the north balcony round the cab to the west balcony (walk until there:
+// software rendering is slow and each frame's step is capped).
+const walkUntil = async (yaw: number, cond: string, what: string) => {
+  await page.evaluate(`${G}.player.yaw = ${yaw}`);
+  await page.keyboard.down('KeyW');
+  await page.waitForFunction(cond, undefined, { timeout: 30000 }).catch(() => fail(what));
+  await page.keyboard.up('KeyW');
+};
+await tp(17, 8, -26.5, Math.PI);
+await page.waitForTimeout(600);
+await walkUntil(Math.PI, `${G}.player.feet.z > -23.2`, 'could not step onto the elevator landing');
+await walkUntil(Math.PI / 2, `${G}.player.feet.x < 14`, 'could not walk from the landing onto the west balcony');
+const onW = await feet();
+console.log('north balcony -> round the cab -> west balcony:', onW.map((v) => v.toFixed(1)).join(', '));
+if (onW[1] < 7.5) fail('fell off the balcony');
+await page.screenshot({ path: 'docs/screens/_smoke-elevator-landing.png' });
+
+// The basement: down the north service stair and back up into the court.
+await tp(24, 0, -74.5, Math.PI);
+await page.waitForTimeout(600);
+await walkUntil(Math.PI, `${G}.player.feet.y < -5.8`, 'did not get down the service stair');
+await walkUntil(0, `${G}.player.feet.z < -74 && ${G}.player.feet.y > -0.1`, 'could not climb back out of the basement');
+console.log('basement: down and back up to', (await feet()).map((v) => v.toFixed(1)).join(', '));
 
 // 3. Climb the grand staircase on foot (sprinting) to the second-floor landing.
 await tp(14.5, 0, 0, Math.PI / 2);

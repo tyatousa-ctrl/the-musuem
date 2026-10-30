@@ -163,6 +163,9 @@ const platforms: Platform[] = [
   { id: 'balconyS', room: 'greatHall', x0: 12, x1: 39, z0: 25, z1: 28, y: F2, style: 'balcony' },
   { id: 'balconyW', room: 'greatHall', x0: 12, x1: 15, z0: -25, z1: 25, y: F2, style: 'balcony' },
   { id: 'balconyE', room: 'greatHall', x0: 36, x1: 39, z0: -25, z1: 25, y: F2, style: 'balcony' },
+  // Landings beside the elevator cabs, so the north and south balconies still join the west one.
+  { id: 'landingNW', room: 'greatHall', x0: 15, x1: 18, z0: -25, z1: -22, y: F2, style: 'balcony' },
+  { id: 'landingSW', room: 'greatHall', x0: 15, x1: 18, z0: 22, z1: 25, y: F2, style: 'balcony' },
   // Grand staircase landing and side galleries.
   { id: 'stairLanding', room: 'grandStair', x0: -2, x1: 0, z0: -12, z1: 12, y: F2, style: 'landing' },
   { id: 'stairGalleryN', room: 'grandStair', x0: 0, x1: 12, z0: -12, z1: -8, y: F2, style: 'balcony' },
@@ -215,7 +218,9 @@ const st = (id: string) => stairs.find((s) => s.id === id)!;
 
 const rails: Rail[] = [
   // Great Hall balcony (the elevator cabs sit in the north-west and south-west corners).
-  R(15, -25, 36, -25, F2), R(15, 25, 36, 25, F2), R(15, -24.5, 15, 24.5, F2), R(36, -25, 36, 25, F2),
+  // The inner rails stop short of the elevator landings so you can walk round the cabs.
+  R(18, -25, 36, -25, F2), R(18, 25, 36, 25, F2), R(15, -22, 15, 22, F2), R(36, -25, 36, 25, F2),
+  R(18, -25, 18, -22, F2), R(15, -22, 18, -22, F2), R(18, 22, 18, 25, F2), R(15, 22, 18, 22, F2),
   // Grand staircase.
   stairRail(st('grandStairs'), 'z0', 'balustrade'), stairRail(st('grandStairs'), 'z1', 'balustrade'),
   R(0, -8, 12, -8, F2), R(0, 8, 12, 8, F2), R(0, -8, 0, -4, F2), R(0, 4, 0, 8, F2),
@@ -345,8 +350,8 @@ const doors: Door[] = [
 
 /** Elevators between the ground floor and the second floor (cab footprint 2.8 m). */
 const elevators: Elevator[] = [
-  { id: 'elevGreatHallN', x: 14, z: -26.5, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
-  { id: 'elevGreatHallS', x: 14, z: 26.5, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
+  { id: 'elevGreatHallN', x: 15, z: -26.05, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
+  { id: 'elevGreatHallS', x: 15, z: 26.05, facing: '+x', stops: [{ floor: 1, label: '1', room: 'greatHall', y: 0 }, { floor: 2, label: '2', room: 'greatHall', y: F2 }] },
   { id: 'elevCourtN', x: -58, z: -52, facing: '+x', stops: [{ floor: 1, label: '1', room: 'northCourt', y: 0 }, { floor: 2, label: '2', room: 'northCourt', y: F2 }] },
   { id: 'elevCourtS', x: -58, z: 52, facing: '+x', stops: [{ floor: 1, label: '1', room: 'southCourt', y: 0 }, { floor: 2, label: '2', room: 'southCourt', y: F2 }] },
 ];

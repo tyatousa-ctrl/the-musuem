@@ -1,7 +1,7 @@
 import {
   DESTRUCTIBLE_CENTER, drainDaze, groundHeightAt, resolveHit, roomAt, type Hand, type MuseumMap, type Team, type Tunables,
 } from '@museum/shared';
-import { AgentT, BreakableT, ObjectT, type PartyState, type PlayerT, PoseT } from '../state/schema.js';
+import { AgentT, BreakableT, ElevatorT, ObjectT, type PartyState, type PlayerT, PoseT } from '../state/schema.js';
 import type { ModeContext, ServerMode } from '../modes/types.js';
 
 type V3 = [number, number, number];
@@ -18,6 +18,7 @@ export class Systems {
   readonly combat: CombatSystem;
   readonly teams: TeamSystem;
   readonly agents: AgentSystem;
+  readonly elevators: ElevatorSystem;
 
   constructor(state: PartyState, map: MuseumMap, tunables: Tunables, ctx: () => ModeContext, mode: () => ServerMode | null) {
     this.objects = new ObjectSystem(state, map, tunables, ctx, mode);
@@ -25,11 +26,13 @@ export class Systems {
     this.combat = new CombatSystem(state, tunables, ctx, mode, this.objects);
     this.teams = new TeamSystem(state);
     this.agents = new AgentSystem(state);
+    this.elevators = new ElevatorSystem(state, map, tunables, ctx);
   }
 
   tick(dtMs: number) {
     this.objects.tick(dtMs);
     this.combat.tick(dtMs);
+    this.elevators.tick();
   }
 }
 
@@ -307,6 +310,106 @@ export class CombatSystem {
     p.protectedUntil = Date.now() + this.tunables.combat.spawnProtectionSec * 1000;
     const mode = this.mode();
     ctx.teleport(p, mode ? mode.spawnFor(ctx, p) : ctx.map.spawns.lobby[0]);
+  }
+}
+
+// ─── Elevators ───────────────────────────────────────────────────────────────
+/**
+ * Elevator cabs with doors (one cab per shaft, at one floor at a time). Press
+ * a floor inside: the doors close, the cab travels, and everyone standing in
+ * it arrives together (a short fade; no moving floor, for comfort). Press the
+ * call button by the door on your floor: the cab comes to you. Requests made
+ * while it's busy are queued.
+ */
+export class ElevatorSystem {
+  private pending = new Map<string, number[]>();
+
+  constructor(private state: PartyState, private map: MuseumMap, private tunables: Tunables, private ctx: () => ModeContext) {
+    for (const e of map.elevators) {
+      const s = new ElevatorT();
+      s.id = e.id; s.floor = e.stops[0].floor; s.state = 'open';
+      state.elevators.set(e.id, s);
+      this.pending.set(e.id, []);
+    }
+  }
+
+  private def(id: string) { return this.map.elevators.find((e) => e.id === id); }
+
+  /** Is the player standing in this cab at this floor? */
+  inside(p: PlayerT, id: string, floor: number): boolean {
+    const e = this.def(id);
+    const stop = e?.stops.find((s) => s.floor === floor);
+    if (!e || !stop || p.status === 'spectating' || p.status === 'reconnecting') return false;
+    const h = this.tunables.elevator.insideHalf;
+    return Math.abs(p.head.px - e.x) < h && Math.abs(p.head.pz - e.z) < h && Math.abs(p.feetY - stop.y) < 1.2;
+  }
+
+  /** A floor button inside the cab. */
+  press(p: PlayerT, id: string, floor: number) {
+    const s = this.state.elevators.get(id);
+    const e = this.def(id);
+    if (!s || !e || p.status !== 'active' || !e.stops.some((x) => x.floor === floor)) return;
+    if (!this.inside(p, id, s.floor) || s.state === 'moving') return;
+    this.request(s, floor);
+  }
+
+  /** The call button by the door on the player's floor. */
+  call(p: PlayerT, id: string, floor: number) {
+    const s = this.state.elevators.get(id);
+    const e = this.def(id);
+    const stop = e?.stops.find((x) => x.floor === floor);
+    if (!s || !e || !stop || p.status !== 'active') return;
+    if (Math.hypot(p.head.px - e.x, p.head.pz - e.z) > this.tunables.elevator.callReach + 1.4 || Math.abs(p.feetY - stop.y) > 1.2) return;
+    this.request(s, floor);
+  }
+
+  private request(s: ElevatorT, floor: number) {
+    const now = Date.now();
+    if (s.state === 'open' && s.floor === floor) return; // already here, doors open
+    if (s.state === 'open') { this.depart(s, floor, now); return; }
+    if (s.state === 'closing' && s.floor === floor && s.dest === floor) return;
+    const q = this.pending.get(s.id)!;
+    if (!q.includes(floor) && s.dest !== floor) q.push(floor);
+  }
+
+  private depart(s: ElevatorT, floor: number, now: number) {
+    s.dest = floor;
+    s.state = 'closing';
+    s.until = now + this.tunables.elevator.doorSec * 1000;
+  }
+
+  tick() {
+    const now = Date.now();
+    const t = this.tunables.elevator;
+    for (const s of this.state.elevators.values()) {
+      if (now < s.until) continue;
+      if (s.state === 'closing') {
+        if (s.dest === s.floor) { s.state = 'opening'; s.until = now + t.doorSec * 600; continue; }
+        s.state = 'moving';
+        s.until = now + t.travelSec * 1000;
+      } else if (s.state === 'moving') {
+        // Everyone in the cab arrives together, standing where they stood.
+        const e = this.def(s.id)!;
+        const from = e.stops.find((x) => x.floor === s.floor)!, to = e.stops.find((x) => x.floor === s.dest)!;
+        const ctx = this.ctx();
+        for (const p of this.state.players.values()) {
+          if (!this.inside(p, s.id, from.floor)) continue;
+          ctx.teleport(p, { id: 'elevator', pos: [p.head.px, to.y, p.head.pz], yaw: 0 }, { fade: true, keepYaw: true });
+        }
+        s.floor = s.dest;
+        s.dest = 0;
+        s.state = 'opening';
+        s.until = now + t.doorSec * 600;
+      } else if (s.state === 'opening') {
+        s.state = 'open';
+        // Doors stay open a moment before serving the next request.
+        s.until = now + 1500;
+      } else if (s.state === 'open') {
+        const q = this.pending.get(s.id)!;
+        const next = q.shift();
+        if (next !== undefined && next !== s.floor) this.depart(s, next, now);
+      }
+    }
   }
 }
 

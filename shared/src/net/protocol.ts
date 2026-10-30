@@ -51,8 +51,10 @@ export interface ClientMessages {
   useDoor: { id: string };
   /** Desktop "tap on the shoulder" for an NPC in reach (VR touches are detected from hand poses). */
   touchAgent: { id: string };
-  /** Ride an elevator to a floor (player must be standing in the cab). */
+  /** Press a floor button inside an elevator cab (player must be standing in it). */
   elevator: { id: string; floor: number };
+  /** Press the call button beside an elevator's door on your floor. */
+  callElevator: { id: string; floor: number };
   selectMode: { mode: ModeId };
   setSetting: { key: string; value: number | string | boolean };
   startRound: Record<string, never>;

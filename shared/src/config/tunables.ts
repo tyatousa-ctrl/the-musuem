@@ -46,6 +46,16 @@ export const tunables = {
     maxPoseSpeed: 12,
     maxPlayers: 4,
   },
+  elevator: {
+    /** Doors closing or opening, s. */
+    doorSec: 1.0,
+    /** Travel between floors, s (riders stand in the closed cab, then a short fade). */
+    travelSec: 1.6,
+    /** Half-size of the cab floor that counts as "inside", m (the cab is 2.8 m square). */
+    insideHalf: 1.25,
+    /** Call buttons work from this far from the cab door, m. */
+    callReach: 3.5,
+  },
   round: {
     countdownSec: 5,
     resultsSec: 10,
