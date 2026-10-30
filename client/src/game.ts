@@ -398,8 +398,11 @@ export class Game {
           else {
             const door = this.doors.near(hand.pos, 1.0);
             if (door) { net.send('useDoor', { id: door }); this.audio.play('door', this.doors.position(door)); }
+            // Nothing to pick up: grip the wall, rail or ledge itself and climb.
+            else if (this.player.tryGripSurface(h)) this.haptic(h, 0.35, 30);
           }
         }
+        if (!grip && this.prevGrip[h]) this.player.releaseGrip(h);
         if (!grip && this.prevGrip[h] && hand.heldId) this.release(h, hand.velocity);
         this.prevGrip[h] = grip;
         // Push elevator buttons with a fingertip.

@@ -28,6 +28,18 @@ export const tunables = {
     throwHistoryFrames: 6,
     /** Max throw speed, m/s (clamped server-side too). */
     maxThrowSpeed: 14,
+    /** Take-off speed of a jump, m/s (about 0.75 m high with this gravity). */
+    jumpSpeed: 5.2,
+    /** A jump still works this long after walking off an edge, s. */
+    coyoteSec: 0.12,
+    /** Desktop wall climbing speed, m/s (VR climbs hand over hand). */
+    climbSpeed: 1.8,
+    /** A hand this close to a surface can grip it to climb (VR), m. */
+    climbReach: 0.09,
+    /** Highest ledge (above your feet) you can pull yourself up onto, m. */
+    mantleMax: 1.9,
+    /** Time to pull up onto a ledge, s. */
+    mantleSec: 0.35,
   },
   net: {
     /** Client pose send rate, Hz. */

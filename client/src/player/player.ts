@@ -38,6 +38,12 @@ export class Player {
   smoothTurn = loadPref('smoothTurn', false);
   private lastSafe = new THREE.Vector3();
   dynamicBoxes: DynamicBox[] = [];
+  /** Jumping, climbing and pulling up onto ledges. */
+  private coyote = 0;
+  private climbAnchors: Partial<Record<Hand, THREE.Vector3>> = {};
+  private mantle: { from: THREE.Vector3; to: THREE.Vector3; t: number } | null = null;
+  /** True while climbing a wall on desktop (Space held against a wall). */
+  desktopClimbing = false;
 
   constructor(readonly camera: THREE.PerspectiveCamera, private renderer: THREE.WebGLRenderer, private bvh: MeshBVH) {
     this.rig.name = 'rig';
@@ -99,6 +105,59 @@ export class Player {
 
   setFade(target: number) { this.fadeTarget = target; }
 
+  // ─── Climbing (VR: grip any surface and pull; desktop: hold Space at a wall) ──
+  /** VR: try to grip the wall, rail or ledge at this hand. Returns true if there was something to hold. */
+  tryGripSurface(h: Hand): boolean {
+    const at = this.hands[h].glove.getWorldPosition(new THREE.Vector3());
+    if (distanceToGeometry(this.bvh, at, 0.3) > tunables.player.climbReach) return false;
+    this.climbAnchors[h] = at;
+    return true;
+  }
+
+  releaseGrip(h: Hand) { delete this.climbAnchors[h]; }
+
+  get climbing() { return Object.keys(this.climbAnchors).length > 0 || this.desktopClimbing; }
+
+  get mantling() { return !!this.mantle; }
+
+  private ray = new THREE.Ray();
+
+  /** First solid surface along a ray within `far`, or null. */
+  private cast(origin: THREE.Vector3, dir: THREE.Vector3, far: number) {
+    this.ray.set(origin, dir);
+    const hit = this.bvh.raycastFirst(this.ray, THREE.DoubleSide);
+    return hit && hit.distance <= far ? hit : null;
+  }
+
+  /** A ledge just ahead (top within reach, room to stand on it), as the point to stand on. */
+  private ledgeAhead(feet: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
+    // Look a little way ahead at a few distances (a thin wall's top is just past its face).
+    for (const d of [0.5, 0.7, 0.95]) {
+      const l = this.ledgeAt(feet, dir, d);
+      if (l) return l;
+    }
+    return null;
+  }
+
+  private ledgeAt(feet: THREE.Vector3, dir: THREE.Vector3, ahead: number): THREE.Vector3 | null {
+    const p = tunables.player;
+    const probe = feet.clone().addScaledVector(dir, ahead);
+    probe.y = feet.y + p.mantleMax + 0.3;
+    const down = this.cast(probe, new THREE.Vector3(0, -1, 0), p.mantleMax + 0.3);
+    if (!down || (down.face && Math.abs(down.face.normal.y) < 0.7)) return null;
+    const top = down.point.y;
+    if (top - feet.y < 0.4) return null; // a step, not a ledge
+    // Headroom on top, and nothing in the way at head height.
+    if (this.cast(new THREE.Vector3(probe.x, top + 0.05, probe.z), new THREE.Vector3(0, 1, 0), 1.7)) return null;
+    if (this.cast(new THREE.Vector3(feet.x, top + 1.2, feet.z), dir, ahead + 0.1)) return null;
+    return new THREE.Vector3(probe.x, top, probe.z);
+  }
+
+  /** Is there a wall right in front of the chest (desktop climbing)? */
+  private wallAhead(feet: THREE.Vector3, dir: THREE.Vector3): boolean {
+    return !!this.cast(new THREE.Vector3(feet.x, feet.y + 1.1, feet.z), dir, 0.7);
+  }
+
   /** Eyes closed: instantly and completely black (no peeking while it fades). */
   blackout = false;
 
@@ -113,6 +172,21 @@ export class Player {
   update(dt: number, a: Actions, menuOpen: boolean) {
     const p = tunables.player;
     const xr = this.inXR;
+
+    // Pulling up onto a ledge: a short scripted arc (up first, then over), no collision.
+    if (this.mantle) {
+      this.mantle.t = Math.min(1, this.mantle.t + dt / p.mantleSec);
+      const t = this.mantle.t, up = Math.min(1, t * 1.6), over = Math.max(0, (t - 0.35) / 0.65);
+      this.rig.position.set(
+        this.mantle.from.x + (this.mantle.to.x - this.mantle.from.x) * over,
+        this.mantle.from.y + (this.mantle.to.y - this.mantle.from.y) * up,
+        this.mantle.from.z + (this.mantle.to.z - this.mantle.from.z) * over);
+      this.velocity.set(0, 0, 0);
+      if (t >= 1) { this.mantle = null; this.grounded = true; this.lastSafe.copy(this.rig.position); }
+      if (!xr) { this.yaw += a.lookDelta.x; this.pitch = THREE.MathUtils.clamp(this.pitch + a.lookDelta.y, -1.45, 1.45); this.camera.rotation.set(this.pitch, 0, 0, 'YXZ'); }
+      this.rig.rotation.y = this.yaw;
+      return;
+    }
 
     // Turning.
     if (!xr) {
@@ -142,7 +216,37 @@ export class Player {
     this.velocity.z = tmpV.z + this.knock.z;
     this.knock.multiplyScalar(Math.max(0, 1 - dt * 6));
     this.velocity.y = this.grounded ? Math.max(this.velocity.y, -1) - p.gravity * dt : this.velocity.y - p.gravity * dt;
-    this.rig.position.addScaledVector(this.velocity, dt);
+
+    // Jump (with a moment's grace after walking off an edge).
+    this.coyote = this.grounded ? p.coyoteSec : Math.max(0, this.coyote - dt);
+    if (a.jumpPressed && this.coyote > 0 && move && !this.climbing) { this.velocity.y = p.jumpSpeed; this.coyote = 0; this.grounded = false; }
+
+    // Climbing. VR: each gripping hand stays put on the wall and the body follows it.
+    // Desktop: hold Space facing a wall to climb straight up it.
+    this.desktopClimbing = !xr && move > 0 && a.jumpHeld && !this.grounded && this.wallAhead(this.rig.position, fwd);
+    const anchors = Object.entries(this.climbAnchors) as [Hand, THREE.Vector3][];
+    if (anchors.length) {
+      const pull = new THREE.Vector3();
+      for (const [h, anchor] of anchors) pull.add(anchor.clone().sub(this.hands[h].glove.getWorldPosition(tmpV2)));
+      pull.divideScalar(anchors.length).clampLength(0, 0.3);
+      this.velocity.set(0, 0, 0);
+      this.rig.position.add(pull);
+    } else if (this.desktopClimbing) {
+      this.velocity.set(0, p.climbSpeed, 0);
+      this.rig.position.addScaledVector(this.velocity, dt);
+    } else this.rig.position.addScaledVector(this.velocity, dt);
+
+    // Reaching the top of something while jumping or climbing: pull up onto it.
+    if ((!this.grounded || this.climbing) && (a.move.y > 0.3 || this.climbing) && move) {
+      const ledge = this.ledgeAhead(this.rig.position, fwd);
+      if (ledge) {
+        this.headPosition(headWorld);
+        const off = new THREE.Vector3(headWorld.x - this.rig.position.x, 0, headWorld.z - this.rig.position.z);
+        this.mantle = { from: this.rig.position.clone(), to: ledge.sub(off), t: 0 };
+        this.climbAnchors = {};
+        return;
+      }
+    }
     this.frozen = Math.max(0, this.frozen - dt);
     this.knockFade = Math.max(0, this.knockFade - dt);
 

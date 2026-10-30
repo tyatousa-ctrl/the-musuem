@@ -18,6 +18,8 @@ export interface Actions {
   grabLeftPressed: boolean; grabRightPressed: boolean; // edges (desktop toggles)
   menuToggle: boolean;      // edge
   mapToggle: boolean;       // edge
+  jumpPressed: boolean;     // edge
+  jumpHeld: boolean;        // held (desktop: climb a wall you're facing)
   uiSelect: boolean;        // edge
   perfToggle: boolean;      // edge
 }
@@ -27,7 +29,7 @@ export const BINDINGS = {
     forward: ['KeyW', 'ArrowUp'], back: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
     sprint: ['ShiftLeft', 'ShiftRight'], crouch: ['KeyC', 'ControlLeft'],
     grabRight: ['KeyE'], grabLeft: ['KeyQ'], shove: ['KeyF'],
-    menu: ['Escape', 'Tab'], perf: ['F3', 'Backquote'], map: ['KeyM'],
+    menu: ['Escape', 'Tab'], perf: ['F3', 'Backquote'], map: ['KeyM'], jump: ['Space'],
   },
   mouse: { useRight: 0, uiSelect: 0 },
   /** xr-standard gamepad mapping: button indices and axes. */
@@ -49,7 +51,7 @@ export class DesktopInput {
 
   constructor(private el: HTMLElement) {
     addEventListener('keydown', (e) => {
-      if (e.code === 'Tab') e.preventDefault();
+      if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
     });
@@ -92,6 +94,8 @@ export class DesktopInput {
     out.uiSelect = this.mousePressed;
     out.menuToggle = this.edge(k.menu);
     out.mapToggle = this.edge(k.map);
+    out.jumpPressed = this.edge(k.jump);
+    out.jumpHeld = this.any(k.jump);
     out.perfToggle = this.edge(k.perf);
     this.pressed.clear();
     this.mousePressed = false;
@@ -102,7 +106,7 @@ export function emptyActions(): Actions {
   return {
     move: new THREE.Vector2(), turn: 0, snapTurn: 0, lookDelta: new THREE.Vector2(), sprint: false, crouch: false,
     grabLeft: false, grabRight: false, useLeft: false, useRight: false, useRightPressed: false, shovePressed: false,
-    grabLeftPressed: false, grabRightPressed: false, menuToggle: false, mapToggle: false, uiSelect: false, perfToggle: false,
+    grabLeftPressed: false, grabRightPressed: false, menuToggle: false, mapToggle: false, jumpPressed: false, jumpHeld: false, uiSelect: false, perfToggle: false,
   };
 }
 
@@ -123,7 +127,7 @@ export class XRInput {
   read(session: XRSession | null, dt: number, out: Actions) {
     out.move.set(0, 0); out.turn = 0; out.snapTurn = 0;
     out.grabLeft = out.grabRight = out.useLeft = out.useRight = false;
-    out.menuToggle = false; out.mapToggle = false; out.uiSelect = false; out.sprint = false;
+    out.menuToggle = false; out.mapToggle = false; out.jumpPressed = false; out.jumpHeld = false; out.uiSelect = false; out.sprint = false;
     if (!session) return;
     const b = BINDINGS.xr;
     for (const src of session.inputSources) {
@@ -156,6 +160,7 @@ export class XRInput {
         if (Math.abs(ax) < 0.3) this.snapArmed = true;
         out.grabRight = !!pressed[b.squeeze];
         out.useRight = !!pressed[b.trigger];
+        if (edge(b.ax)) out.jumpPressed = true; // A jumps
         if (edge(b.trigger)) out.uiSelect = true;
       }
       this.prev.set(hand, pressed);

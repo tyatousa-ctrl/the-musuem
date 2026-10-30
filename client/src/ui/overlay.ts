@@ -42,13 +42,13 @@ export class DesktopOverlay {
     this.root.innerHTML = `<div><h1>THE MUSEUM</h1><div class="sub">After hours. Bring friends. Touch everything.</div>
       <div class="row"><button class="play">Play on desktop</button><div class="vr"></div></div>
       <div class="status"></div>
-      <div class="keys">WASD move · mouse look · Shift sprint · C crouch<br>E / Q grab with right / left hand · click to punch or throw · F shove · M map · Tab menu</div></div>`;
+      <div class="keys">WASD move · mouse look · Shift sprint · C crouch · Space jump (hold at a wall to climb)<br>E / Q grab with right / left hand · click to punch or throw · F shove · M map · Tab menu</div></div>`;
     document.body.appendChild(this.root);
     this.statusEl = this.root.querySelector('.status')!;
     this.vrSlot = this.root.querySelector('.vr')!;
     this.root.querySelector<HTMLButtonElement>('.play')!.onclick = onPlay;
     this.hudEl = el('hud'); this.xh = el('xh'); this.hint = el('hint'); this.cardEl = el('card'); this.results = el('results');
-    this.hint.textContent = 'E grab · click punch/throw · F shove · M map · Tab menu';
+    this.hint.textContent = 'Space jump/climb · E grab · click punch/throw · F shove · M map · Tab menu';
     if (hidden) this.hideAll();
   }
 

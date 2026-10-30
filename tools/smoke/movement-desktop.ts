@@ -94,6 +94,24 @@ await walkUntil(Math.PI, `${G}.player.feet.y < -5.8`, 'did not get down the serv
 await walkUntil(0, `${G}.player.feet.z < -74 && ${G}.player.feet.y > -0.1`, 'could not climb back out of the basement');
 console.log('basement: down and back up to', (await feet()).map((v) => v.toFixed(1)).join(', '));
 
+// Jumping and climbing: jump and pull up onto the information desk (1.1 m); climb a gallery partition (3.6 m).
+await tp(25.5, 0, 4.0, 0);
+await page.waitForTimeout(800);
+await page.keyboard.down('KeyW');
+await page.keyboard.press('Space');
+await page.waitForFunction(`${G}.player.feet.y > 1.0 && ${G}.player.grounded`, undefined, { timeout: 15000 }).catch(() => fail('could not jump up onto the desk'));
+await page.keyboard.up('KeyW');
+console.log('jumped onto the desk:', (await feet()).map((v) => v.toFixed(1)).join(', '));
+await tp(-49, 0, 19.3, Math.PI);
+await page.waitForTimeout(800);
+await page.keyboard.down('KeyW');
+await page.keyboard.down('Space');
+await page.waitForFunction(`${G}.player.feet.y > 3.5 && ${G}.player.grounded`, undefined, { timeout: 30000 }).catch(() => fail('could not climb the gallery partition'));
+await page.keyboard.up('Space');
+await page.keyboard.up('KeyW');
+console.log('climbed onto the partition:', (await feet()).map((v) => v.toFixed(1)).join(', '));
+await page.screenshot({ path: 'docs/screens/_smoke-climb.png' });
+
 // 3. Climb the grand staircase on foot (sprinting) to the second-floor landing.
 await tp(14.5, 0, 0, Math.PI / 2);
 await page.waitForTimeout(800);
